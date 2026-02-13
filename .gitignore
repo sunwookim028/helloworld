@@ -1,0 +1,27 @@
+# V80 FPGA Build Artifacts
+amd_v80_gen5x8_25.1/build/
+*.pdi
+*.xsa
+*.elf
+*.bin
+*.log
+*.jou
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Vivado
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+.Xil/
+
+# OS
+.DS_Store
+*.swp
+*~
