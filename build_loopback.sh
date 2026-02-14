@@ -40,14 +40,21 @@ fi
 
 echo -e "${GREEN}✓ bootgen found:${NC} $(which bootgen)"
 
-# Check for firmware
-FW_DIR="/opt/Xilinx/AVED/fw/AMC"
-if [ ! -d "$FW_DIR" ]; then
-    echo -e "${RED}ERROR: AVED firmware not found at $FW_DIR${NC}"
+# Check for firmware - try local first, then system
+FW_DIR=""
+if [ -d "fw/AMC" ]; then
+    FW_DIR="$(pwd)/fw/AMC"
+    echo -e "${GREEN}✓ AVED firmware found (local):${NC} $FW_DIR"
+elif [ -d "/opt/Xilinx/AVED/fw/AMC" ]; then
+    FW_DIR="/opt/Xilinx/AVED/fw/AMC"
+    echo -e "${GREEN}✓ AVED firmware found (system):${NC} $FW_DIR"
+else
+    echo -e "${RED}ERROR: AVED firmware not found${NC}"
+    echo "Expected locations:"
+    echo "  - $(pwd)/fw/AMC (local copy)"
+    echo "  - /opt/Xilinx/AVED/fw/AMC (system)"
     exit 1
 fi
-
-echo -e "${GREEN}✓ AVED firmware found${NC}"
 
 # Init
 DESIGN="amd_v80_gen5x8_25.1_loopback"

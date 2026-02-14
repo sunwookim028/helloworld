@@ -24,7 +24,8 @@ set -Eeuo pipefail
 # Init
 DESIGN="amd_v80_gen5x8_25.1"
 HW_DIR=$(realpath ./)
-FW_DIR=$(realpath ./../../fw/AMC)
+# Use local firmware copy for self-contained project
+FW_DIR=$(realpath ../../fw/AMC)
 XSA=${XSA:-$(realpath ${HW_DIR})/build/${DESIGN}.xsa}
 
 # Step HW

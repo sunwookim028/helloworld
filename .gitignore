@@ -1,5 +1,6 @@
 # V80 FPGA Build Artifacts
 amd_v80_gen5x8_25.1/build/
+fw/AMC/build/
 *.pdi
 *.xsa
 *.elf

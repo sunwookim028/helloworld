@@ -20,17 +20,27 @@ This project demonstrates a simple PCIe-to-HBM loopback design on the AMD Alveo 
 ```
 helloworld/
 ├── README.md                    # This file
-├── amd_v80_gen5x8_25.1/        # AVED base design (copied from /opt/Xilinx/AVED)
+├── AGENTS.md                    # Technical reference
+├── build_loopback.sh            # Main build script
+├── setup_github.sh              # GitHub setup helper
+├── amd_v80_gen5x8_25.1/        # AVED base design
 │   ├── src/                     # Vivado source files
 │   │   ├── bd/                  # Block design TCL
 │   │   └── constraints/         # Timing constraints
-│   ├── build_all.sh            # Main build script
+│   ├── build_all.sh            # AVED build script
 │   └── fpt/                     # Firmware partition table
-├── hw/                          # Custom hardware (to be added)
-│   └── rtl/                     # Custom RTL modules
-└── sw/                          # Host software (to be added)
+├── fw/                          # AVED firmware (self-contained)
+│   └── AMC/                     # Management controller firmware
+├── hw/                          # Custom hardware
+│   ├── rtl/
+│   │   └── hbm_loopback.v      # Loopback RTL module
+│   └── integrate_loopback.tcl   # Integration script
+└── sw/                          # Host software
     └── test_hbm_loopback.py    # Test script
 ```
+
+> **Note**: This project is now **self-contained** with all dependencies included.
+> The firmware is copied locally so the project can be built on any system with Vivado.
 
 ## Quick Start Guide
 
