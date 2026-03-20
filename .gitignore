@@ -37,4 +37,4 @@ hbm_simple_xrt/verification/run_test.sh
 
 # cocotb Virtual Environment
 
-cocotb_env
+**/cocotb_env
