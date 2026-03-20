@@ -22,7 +22,7 @@
  * Self-contained version (no external common dependencies).
  *
  *  *****************************************************************************************/
-#include <iostream>
+#include <iostream
 #include <cstring>
 #include <vector>
 #include <chrono>
