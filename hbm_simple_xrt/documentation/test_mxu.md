@@ -1,13 +1,10 @@
 # test_mxu.py — Cocotb Test Suite for the MXU
-
 **Path:** `verification/test_mxu.py`
 
 ## Purpose
-
 Tests the full MXU module including its FSM, memory interface, systolic array orchestration, and output capture. Unlike the systolic array tests (which drive the array protocol directly), these tests interact with the MXU at its memory-mapped interface level: load matrices into a memory model, pulse `start`, wait for `done`, and read results back from memory.
 
 ## Test Inventory (19 tests)
-
 | # | Test Name                     | What It Verifies                                                  |
 |---|-------------------------------|-------------------------------------------------------------------|
 | 1 | `test_identity`               | W = I → OUT = X (FSM end-to-end with simplest case)              |
@@ -31,9 +28,7 @@ Tests the full MXU module including its FSM, memory interface, systolic array or
 | 19| `test_triple_back_to_back`    | Three consecutive operations without reset                        |
 
 ## Key Components
-
 ### `memory_driver(dut, mem)` — Cocotb Memory Model
-
 An `async` coroutine started with `cocotb.start_soon()` that runs continuously, modeling a simple memory:
 
 ```python
@@ -49,7 +44,6 @@ while True:
 - **Dictionary-based:** Uses a Python `dict` for sparse memory — only addresses that have been written contain data.
 
 ### Memory Map
-
 | Region            | Base Address | Size   | Contents            |
 |-------------------|-------------|--------|---------------------|
 | Weight matrix (W) | `0x0000`    | N² words| Row-major FP32     |
@@ -77,7 +71,6 @@ Applies reset, sets base addresses, clears `mem_resp_data`.
 Same element-wise comparison as the systolic array tests, with default `rtol=1e-4` and `atol=1e-5`.
 
 ## Configuration
-
 | Variable         | Source       | Default | Description                      |
 |------------------|-------------|---------|----------------------------------|
 | `N`              | `MXU_N` env | 16      | Matrix dimension                 |
@@ -85,7 +78,6 @@ Same element-wise comparison as the systolic array tests, with default `rtol=1e-
 | `TIMEOUT_CYCLES` | Hardcoded   | 10,000  | Max cycles to wait for `done`    |
 
 ## Design Notes
-
 - **MEM_LATENCY interaction:** The memory driver runs in cocotb's ReadWrite scheduling region, which executes *after* Verilog `always_ff` blocks in the Active region. This means the MXU needs `MEM_LATENCY ≥ 2` to capture valid data — with latency 1, it would sample `mem_resp_data` before the driver updates it.
 - **Deterministic random:** `random.seed(0xDEAD_BEEF)` ensures reproducible random test cases.
 - **Memory driver lifecycle:** A new memory driver coroutine is started for each test (or each case within `test_random_matrices`). The `mem` dictionary is fresh for each test, preventing cross-contamination.

@@ -1,13 +1,10 @@
 # Makefile — Verification Build and Run System
-
 **Path:** `verification/Makefile`
 
 ## Purpose
-
 Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and execution of cocotb test suites via VVP (Verilog VVP simulator). Provides targets for both the systolic array and MXU at two sizes (4×4 and 16×16).
 
 ## Targets
-
 | Target                      | Description                                                   |
 |-----------------------------|---------------------------------------------------------------|
 | `make all`                  | Runs `test_systolic_array`, `test_mxu`, and `test_matmul`    |
@@ -20,9 +17,7 @@ Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and ex
 | `make clean`                | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd`    |
 
 ## How It Works
-
 ### Step 1: Compilation (Icarus Verilog)
-
 Each test target depends on a compiled `.vvp` file in `sim_build/`:
 
 ```makefile
@@ -42,7 +37,6 @@ For 4×4 variants, parameter overrides are passed:
 ```
 
 ### Step 2: Execution (VVP + cocotb)
-
 ```makefile
 MODULE=test_systolic_array \
 COCOTB_TEST_MODULES=test_systolic_array \
@@ -61,7 +55,6 @@ VVP flags:
 - `-m libcocotbvpi_icarus`: Load the cocotb VPI module for Icarus
 
 ### RTL Source Dependencies
-
 ```
 SRC_FP32     = fp32_add.sv, fp32_mul.sv
 SRC_PE       = pe.sv + SRC_FP32
@@ -73,7 +66,6 @@ SRC_MATMUL   = matmul_top.sv + SRC_MXU
 All source files are in `../src/` relative to the verification directory. The `SRC_MATMUL` chain includes all RTL because `matmul_top` instantiates the full `mxu` hierarchy.
 
 ### Environment Setup
-
 The Makefile exports several variables needed by cocotb:
 
 | Variable              | Purpose                                             |
@@ -89,7 +81,6 @@ COCOTB_LIBS = $(shell python3 -c "import cocotb; ...")
 ```
 
 ## Design Notes
-
 - **WSL required:** This Makefile is designed to run under WSL (Windows Subsystem for Linux). The Windows version of Icarus Verilog cannot load cocotb's VPI DLL due to a subsystem version mismatch.
 - **No `SIM` variable:** Unlike cocotb's standard Makefile.sim flow, this Makefile directly invokes `iverilog` and `vvp` for full control over compilation flags.
 - **4×4 variants share test files:** The same Python test files are used for both 4×4 and 16×16, with `N` read from environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`).

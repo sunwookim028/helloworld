@@ -1,13 +1,10 @@
 # krnl_vadd_wr_mst.v — AXI4 Burst Write Master
-
 **Path:** `src/krnl_vadd_wr_mst.v`
 
 ## Purpose
-
 Writes `num_words` × 512-bit words to HBM starting at `base_addr` using AXI4 burst transactions. Data is sourced from an external FWFT FIFO. The critical design pattern here is that `WVALID`, `WDATA`, `WLAST`, and `fifo_rd_en` are all **combinational** — this FWFT idiom (identical to minitpu's AXI-Stream master) achieves zero-bubble streaming on the W channel.
 
 ## Interface
-
 | Port              | Direction | Width      | Description                              |
 |-------------------|-----------|------------|------------------------------------------|
 | `clk`, `rst_n`    | input     | 1          | Clock and active-low reset               |
@@ -23,7 +20,6 @@ Writes `num_words` × 512-bit words to HBM starting at `base_addr` using AXI4 bu
 | `M_AXI_B*`        | input/out | various    | AXI4 write response channel              |
 
 ## FSM
-
 ```
 IDLE ──start──► AW ──AWREADY──► W ──WLAST──► B ──BVALID──► AW (more) or IDLE
 ```
@@ -50,7 +46,6 @@ assign fifo_rd_en   = M_AXI_WVALID && M_AXI_WREADY;  // dequeue on handshake
 Waits for `BVALID` (write response). Updates `words_done`, advances address, either loops to S_AW or pulses `done` and returns to S_IDLE.
 
 ## FWFT Timing Detail
-
 ```
 Cycle N:   WVALID=1, WREADY=1 → handshake. WDATA = mem[rptr_N]. fifo_rd_en=1.
 Cycle N+1: rptr advances to rptr_N+1. WDATA = mem[rptr_N+1] (combinational). ✓
@@ -59,7 +54,6 @@ Cycle N+1: rptr advances to rptr_N+1. WDATA = mem[rptr_N+1] (combinational). ✓
 No dead cycle between beats. This is the same pattern minitpu uses for its AXI-Stream master (`tpu_master_axi_stream.v`).
 
 ## AXI4 Constants
-
 | Signal        | Value     | Meaning                            |
 |---------------|-----------|------------------------------------|
 | `AWSIZE`      | `3'b110`  | 64 bytes/beat (512 bits)           |

@@ -1,13 +1,10 @@
 # krnl_vadd.sv — RTL Kernel Top-Level
-
 **Path:** `src/krnl_vadd.sv`
 
 ## Purpose
-
 The top-level Vitis RTL kernel for the HBM Data Mover. This module replaces the original HLS C kernel (`krnl_vadd.cpp`) with functionally equivalent RTL. It reads `size/16` 512-bit words from HBM via `in1` and writes them to `out` — a pure DMA copy engine used to benchmark HBM bandwidth (~28.9 GB/s multi-bank on Alveo U280).
 
 ## Interface
-
 The port names follow Vitis conventions exactly (required for `kernel.xml` / shell auto-connect):
 
 | Port Group          | AXI Type   | Width   | Role                                         |
@@ -19,7 +16,6 @@ The port names follow Vitis conventions exactly (required for `kernel.xml` / she
 | `ap_clk`, `ap_rst_n`| —          | 1       | Clock and active-low reset                    |
 
 ## Internal Architecture
-
 ```
                     s_axi_control
                          │
@@ -46,7 +42,6 @@ The port names follow Vitis conventions exactly (required for `kernel.xml` / she
 ```
 
 ### Submodule Instantiations
-
 | Instance    | Module           | Role                                           |
 |-------------|------------------|-------------------------------------------------|
 | `u_ctrl`    | `krnl_vadd_ctrl` | AXI4-Lite slave, register file, ap_ctrl_hs       |
@@ -55,7 +50,6 @@ The port names follow Vitis conventions exactly (required for `kernel.xml` / she
 | `u_fifo`    | `fifo4`          | 512-bit FWFT FIFO, depth 64, decouples rd/wr    |
 
 ### Top-Level FSM (lines 175–236)
-
 Two states:
 
 - **S_IDLE:** Waits for rising edge on `ap_start`. On detection, clears done latches and pulses `start_masters` to both read and write masters simultaneously.
@@ -64,9 +58,7 @@ Two states:
 The read and write masters run **in parallel** — the FIFO decouples them so the write master can proceed as soon as data is available, without waiting for all reads to complete.
 
 ### gmem1 (in2) — Tied Inactive
-
 All AXI4 channels for `m_axi_gmem1` are tied to inactive values (lines 395–416). This port exists because the original HLS C kernel declared an `in2` argument. XRT requires all declared ports to be present in the RTL interface, even if unused.
 
 ### Data Width Conversion
-
 `num_words = size >> 4` — the `size` parameter from the host is in 32-bit elements. Each 512-bit AXI beat carries 16 × 32-bit elements, so dividing by 16 gives the number of AXI beats.

@@ -1,13 +1,10 @@
 # krnl_vadd_rd_mst.v — AXI4 Burst Read Master
-
 **Path:** `src/krnl_vadd_rd_mst.v`
 
 ## Purpose
-
 Reads `num_words` × 512-bit words from HBM starting at `base_addr` using AXI4 burst transactions. Data is pushed into an external FWFT FIFO for the write master to consume. Supports multi-burst transfers (each burst up to 256 beats = 16 KB at 512-bit width).
 
 ## Interface
-
 | Port              | Direction | Width      | Description                              |
 |-------------------|-----------|------------|------------------------------------------|
 | `clk`, `rst_n`    | input     | 1          | Clock and active-low reset               |
@@ -22,7 +19,6 @@ Reads `num_words` × 512-bit words from HBM starting at `base_addr` using AXI4 b
 | `M_AXI_R*`        | input/out | various    | AXI4 read data channel                   |
 
 ## FSM
-
 ```
 IDLE ──start──► AR ──ARREADY──► R ──RLAST──► AR (more bursts) or DONE ──► IDLE
 ```
@@ -43,7 +39,6 @@ Accepts read data beats:
 Pulses `done` for one cycle, returns to S_IDLE.
 
 ## Burst Length Calculation
-
 ```verilog
 wire [31:0] next_remaining = num_words - (words_done + burst_len);
 wire [8:0]  next_burst_len = (next_remaining > 256) ? 256 : next_remaining[8:0];
@@ -52,7 +47,6 @@ wire [8:0]  next_burst_len = (next_remaining > 256) ? 256 : next_remaining[8:0];
 The next burst length is computed **combinationally** from pre-NBA register values and latched on the RLAST cycle.
 
 ## AXI4 Constants
-
 | Signal        | Value     | Meaning                            |
 |---------------|-----------|------------------------------------|
 | `ARSIZE`      | `3'b110`  | 64 bytes/beat (2^6 = 512 bits)     |

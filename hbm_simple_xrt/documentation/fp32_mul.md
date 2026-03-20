@@ -1,14 +1,11 @@
 # fp32_mul.sv — IEEE-754 FP32 Multiplier
-
 **Path:** `src/fp32_mul.sv`
 **Origin:** Copied from `minitpu/tpu/src/compute_tile/fp32_mul.sv`
 
 ## Purpose
-
 Combinational (purely logic, no clock) IEEE-754 single-precision floating-point multiplier. Given two 32-bit FP32 inputs `a` and `b`, it produces their product `result = a × b` in a single combinational pass — no pipeline stages, no clock dependency.
 
 ## Interface
-
 | Port     | Direction | Width | Description                     |
 |----------|-----------|-------|---------------------------------|
 | `a`      | input     | 32    | First FP32 operand              |
@@ -16,7 +13,6 @@ Combinational (purely logic, no clock) IEEE-754 single-precision floating-point 
 | `result` | output    | 32    | FP32 product `a × b`           |
 
 ### Parameters (unused in this design, present for interface compatibility)
-
 | Parameter   | Default | Description                        |
 |-------------|---------|-------------------------------------|
 | `FORMAT`    | `"FP32"`| Number format selector              |
@@ -25,7 +21,6 @@ Combinational (purely logic, no clock) IEEE-754 single-precision floating-point 
 | `WIDTH`     | 32      | Data width                          |
 
 ## Internal Operation
-
 The multiplier follows the standard textbook IEEE-754 multiplication algorithm:
 
 ### 1. Field Extraction (lines 31–36)
@@ -60,7 +55,6 @@ For normal (and subnormal) inputs:
 8. **Result assembly:** Sign = XOR of input signs; exponent = `z_e + 127` (re-bias); mantissa = lower 23 bits of `z_m`.
 
 ## Design Notes
-
 - **Purely combinational** — the entire multiply completes in one `always @(*)` block. This means latency is zero clock cycles but the critical path is long (~50-bit multiply + normalization logic). In a real FPGA design, this would typically be pipelined.
 - **Used inside `pe.sv`** as the multiply stage of the MAC (multiply-accumulate) operation.
 - **Correctness:** Validated against IEEE-754 reference via cocotb tests using "nice" FP32 values (small integers, powers of 2) where results are exact.

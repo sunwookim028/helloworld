@@ -1,13 +1,10 @@
 # test_systolic_array.py — Cocotb Test Suite for the Systolic Array
-
 **Path:** `verification/test_systolic_array.py`
 
 ## Purpose
-
 Directly tests the `systolic_array` module by driving the same weight-loading, switch, and activation-feeding protocol that the MXU FSM uses. This isolates the systolic array from the MXU's memory interface and FSM logic, making it easier to diagnose whether a failure is in the array itself or in the wrapper.
 
 ## Test Inventory (19 tests)
-
 | # | Test Name                     | What It Verifies                                                  |
 |---|-------------------------------|-------------------------------------------------------------------|
 | 1 | `test_identity_matrix`        | W = I → OUT = X (pass-through)                                   |
@@ -31,7 +28,6 @@ Directly tests the `systolic_array` module by driving the same weight-loading, s
 | 19| `test_triple_back_to_back`    | Three consecutive matmuls without reset                           |
 
 ## Key Components
-
 ### FP32 Helpers
 - `float_to_bits(val)` — Converts Python float to 32-bit IEEE-754 integer representation
 - `bits_to_float(bits)` — Converts 32-bit integer back to Python float
@@ -42,7 +38,6 @@ Directly tests the `systolic_array` module by driving the same weight-loading, s
 Applies asynchronous reset for 2 cycles, then releases. Initializes all inputs to zero.
 
 ### `run_matmul(dut, W, X)` — The Core Driver
-
 This function drives the exact same protocol as the MXU's S_RUN state, implemented as a single sequential loop (combined drive + capture). This pattern was chosen over separate concurrent cocotb tasks because `cocotb.start_soon()` + `await task` didn't reliably return coroutine results in cocotb 2.0.
 
 **Drive phases (0 to 3N-2):**
@@ -67,7 +62,6 @@ After each `RisingEdge(dut.clk)` + `Timer(1, "ns")` (to let combinational output
 Element-wise comparison with relative tolerance (for nonzero expected values) and absolute tolerance (for near-zero values). Raises `AssertionError` with detailed position and error magnitude on mismatch.
 
 ## Configuration
-
 | Variable | Source | Default | Description |
 |----------|--------|---------|-------------|
 | `N`      | `SYSTOLIC_N` env var | 16 | Array dimension |
@@ -76,7 +70,6 @@ Element-wise comparison with relative tolerance (for nonzero expected values) an
 The Makefile sets `SYSTOLIC_N=4` for the 4×4 variant, or leaves it at 16 for the full-size test.
 
 ## Design Notes
-
 - **Sequential drive+capture pattern:** The `Timer(1, "ns")` after each `RisingEdge` is critical — it allows the combinational `data_out` and `valid_out` to settle after the clock edge before sampling.
 - **Deterministic random:** `random.seed(0xBEEF_CAFE)` ensures reproducible test cases across runs.
 - **All tests use `expected = (X @ W.T).astype(np.float32)`** as the reference, matching the systolic array's mathematical operation.

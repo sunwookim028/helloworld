@@ -1,5 +1,4 @@
 # Reading Order
-
 You have an RTL/digital design background but have never seen this codebase. This project has two independent subsystems in the same source directory. Read them in the order below — the FIFO is shared infrastructure, so it appears first.
 
 Each entry points you to a detailed doc in this same `documentation/` folder.
@@ -7,14 +6,12 @@ Each entry points you to a detailed doc in this same `documentation/` folder.
 ---
 
 ## Part 0: Shared Infrastructure
-
 ### 1. `src/fifo4.sv` → [fifo4.md](fifo4.md)
 Start here. It's small (73 lines) and self-contained. Understand the FWFT (First-Word-Fall-Through) property: `rd_data` is valid **combinationally** when `!empty` — no read latency. Notice how full/empty use an extra wrap bit on the pointers. This FIFO is used in the kernel subsystem and the same idiom (combinational read → zero-bubble streaming) recurs throughout.
 
 ---
 
 ## Part 1: HBM Data Mover Kernel (Subsystem A)
-
 This subsystem is a Vitis RTL kernel deployed on an Alveo U280. It copies data through HBM — a DMA engine for benchmarking bandwidth. Read bottom-up through the submodules, then the top-level, then the packaging.
 
 ### 2. `src/krnl_vadd_ctrl.v` → [krnl_vadd_ctrl.md](krnl_vadd_ctrl.md)
@@ -52,7 +49,6 @@ Skim. It's build infrastructure: creates a Vivado IP from the RTL sources, assoc
 ---
 
 ## Part 2: Systolic Array Compute Engine (Subsystem B)
-
 This subsystem is a standalone matrix multiply unit: `OUT = X × W^T`. It uses real FP32 arithmetic (not stubs). Read bottom-up through the datapath, then the controller, then verification.
 
 ### 8. `src/fp32_mul.sv` → [fp32_mul.md](fp32_mul.md)
@@ -97,7 +93,6 @@ Five lines. Only read if you're wondering why tests are run through a wrapper sc
 ---
 
 ## Part 2.5: HBM Integration Layer
-
 This is the bridge between the two subsystems: a wrapper that connects the 512-bit HBM interface from Subsystem A to the 32-bit element interface of Subsystem B. Read after completing both Part 1 and Part 2.
 
 ### 17. `src/matmul_top.sv` → [matmul_top.md](matmul_top.md)
@@ -112,14 +107,12 @@ Read `pack_matrix()` and `unpack_matrix()` first — these are the Python-side e
 ---
 
 ## Part 3: The Big Picture
-
 ### 19. `architecture.md` → [architecture.md](architecture.md)
 Read this last. It ties everything together: complete data flow diagrams, systolic timing walkthrough, the three-level verification strategy, and the key design pitfalls (MEM_LATENCY, FWFT idiom, weight reversal, Icarus limitations).
 
 ---
 
 ## Summary
-
 **Steps 1–7** cover the HBM kernel (DMA engine, AXI4 mastery, Vitis packaging).
 **Steps 8–16** cover the systolic array (FP32 arithmetic → PE → array → MXU controller → cocotb verification).
 **Steps 17–18** cover the HBM integration layer (matmul_top + 512-bit test harness).

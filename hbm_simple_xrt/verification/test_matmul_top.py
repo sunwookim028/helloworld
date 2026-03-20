@@ -351,9 +351,9 @@ async def test_back_to_back(dut):
 @cocotb.test()
 async def test_hbm_word_boundary(dut):
     """
-    Only the last element of each HBM word is nonzero in W.
-    Forces the unpack logic to correctly extract element index ELEMS_PER_WORD-1
-    from each word (bit position [(ELEMS_PER_WORD-1)*32 +: 32]).
+    Only element ELEMS_PER_WORD-1 (the last, highest-bit field) of each 512-bit
+    HBM word is nonzero. Targets the MSB extraction path in the unpack logic:
+    mem_rd_data[(ELEMS_PER_WORD-1)*DATA_WIDTH +: DATA_WIDTH] = bits [480:511].
     """
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
@@ -362,8 +362,10 @@ async def test_hbm_word_boundary(dut):
     cocotb.start_soon(memory_driver(dut, mem))
 
     W = np.zeros((N, N), dtype=np.float32)
-    # Set every 16th element (last element of each HBM word) to 1
-    for k in range(0, TOTAL_ELEMS, ELEMS_PER_WORD):
+    # Set element ELEMS_PER_WORD-1 (last slot, bits [480:511]) of each HBM word to 1.
+    # This specifically tests that the high-bit field of each 512-bit word is correctly
+    # extracted during unpack (i*DATA_WIDTH +: DATA_WIDTH for i=ELEMS_PER_WORD-1).
+    for k in range(ELEMS_PER_WORD - 1, TOTAL_ELEMS, ELEMS_PER_WORD):
         row = k // N
         col = k % N
         if row < N and col < N:

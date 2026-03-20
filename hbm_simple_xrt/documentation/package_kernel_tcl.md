@@ -1,13 +1,10 @@
 # package_kernel.tcl — Vivado IP Packaging and XO Creation
-
 **Path:** `package_kernel.tcl` (project root)
 
 ## Purpose
-
 A Vivado batch-mode TCL script that takes the raw RTL source files and produces a Vitis `.xo` kernel object — the packaged format that the Vitis linker (`v++`) uses to create the final `.xclbin` bitstream. It has two stages: package RTL as a Vivado IP, then wrap that IP into an `.xo`.
 
 ## Usage
-
 Called from the Makefile (not run directly):
 
 ```bash
@@ -22,7 +19,6 @@ Arguments:
 4. `rtl_src_dir` — directory containing `.sv` and `.v` files
 
 ## What It Does (Step by Step)
-
 ### Step 1: Create Temporary Vivado Project (line 28)
 Creates a project targeting the Alveo U280 part (`xcu280-fsvh2892-2L-e`).
 
@@ -42,7 +38,6 @@ Uses the `package_xo` command (provided by Vitis TCL extensions) to combine the 
 Deletes the temporary Vivado project directory.
 
 ## Relationship to Other Files
-
 - **Inputs:** All `.sv`/`.v` files in `src/`, plus `kernel.xml`
 - **Output:** `krnl_vadd.xo` — consumed by `v++ --link` (in the Makefile's `build` target)
 - The `.xo` is then linked with the platform shell to produce `krnl_vadd.xclbin`
