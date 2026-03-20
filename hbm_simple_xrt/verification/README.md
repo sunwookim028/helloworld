@@ -42,4 +42,4 @@ Test cases include: identity, scalar, zero, negative, diagonal, permutation, tri
 
 ## Documentation
 
-See `documentation/READING_ORDER.md` for a guided walkthrough of every file in the project.
+See `../documentation/READING_ORDER.md` for a guided walkthrough of every file in the project.
