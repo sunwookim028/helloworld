@@ -34,3 +34,7 @@ hbm_simple_xrt/verification/run_test.sh
 .DS_Store
 *.swp
 *~
+
+# cocotb Virtual Environment
+
+cocotb_env
