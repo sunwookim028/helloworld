@@ -22,6 +22,11 @@ __pycache__/
 *.sim/
 .Xil/
 
+# Cocotb / Icarus Verilog simulation
+sim_build/
+results.xml
+*.vcd
+
 # OS
 .DS_Store
 *.swp
