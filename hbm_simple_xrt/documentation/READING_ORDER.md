@@ -83,7 +83,7 @@ The controller that makes the systolic array useful. Read the FSM states in orde
 4. **STORE** (lines 330–358): writes results back to memory
 
 ### 13. `verification/Makefile` → [Makefile.md](Makefile.md)
-Skim the RTL source dependency chain (`SRC_FP32 → SRC_PE → SRC_SYSTOLIC → SRC_MXU`) and how the 4×4 variants override parameters with `-Psystolic_array.N=4`. The rest is cocotb/iverilog plumbing.
+Skim the RTL source dependency chain (`SRC_FP32 → SRC_PE → SRC_SYSTOLIC → SRC_MXU → SRC_MATMUL`) and how the 4×4 variants override parameters with `-Psystolic_array.N=4`. The rest is cocotb/iverilog plumbing.
 
 ### 14. `verification/test_systolic_array.py` → [test_systolic_array.md](test_systolic_array.md)
 Read `run_matmul()` (line 71) carefully — it drives the **exact same protocol** as the MXU's S_RUN state, but from Python. If you understood step 12's S_RUN, this will click immediately. Then skim a few tests to see what matrix patterns are being validated.
@@ -96,10 +96,25 @@ Five lines. Only read if you're wondering why tests are run through a wrapper sc
 
 ---
 
+## Part 2.5: HBM Integration Layer
+
+This is the bridge between the two subsystems: a wrapper that connects the 512-bit HBM interface from Subsystem A to the 32-bit element interface of Subsystem B. Read after completing both Part 1 and Part 2.
+
+### 17. `src/matmul_top.sv` → [matmul_top.md](matmul_top.md)
+The integration wrapper. Focus on three things:
+1. **The localparam arithmetic** at the top: `ELEMS_PER_WORD = 512/32 = 16`, `WORDS_PER_MATRIX = N²/16` — understand the dimensional translation from HBM words to matrix elements.
+2. **The BRAM latch pattern** (lines 106–120): `bram_rd_addr` is latched one cycle after `mxu_mem_rd_en`, then `mxu_mem_resp_data` is driven combinationally from the latched address. This is what makes MEM_LATENCY=2 work for the MXU reading these BRAMs.
+3. **The store pack loop** (lines 281–288): how the 32-bit `out_bram` elements get merged back into one 512-bit `mem_wr_data` word.
+
+### 18. `verification/test_matmul_top.py` → [test_matmul_top.md](test_matmul_top.md)
+Read `pack_matrix()` and `unpack_matrix()` first — these are the Python-side equivalents of the RTL's HBM word packing/unpacking. Then `memory_driver()`: same coroutine pattern as `test_mxu.py` but now `mem_rd_data` and `mem_wr_data` are 512-bit integers. The `test_hbm_word_boundary` test is the most interesting one to read — it was specifically designed to catch element-ordering bugs in the bit-slice unpack logic.
+
+---
+
 ## Part 3: The Big Picture
 
-### 17. `architecture.md` → [architecture.md](architecture.md)
-Read this last. It ties everything together: complete data flow diagrams, systolic timing walkthrough, the two-level verification strategy, and the key design pitfalls (MEM_LATENCY, FWFT idiom, weight reversal, Icarus limitations).
+### 19. `architecture.md` → [architecture.md](architecture.md)
+Read this last. It ties everything together: complete data flow diagrams, systolic timing walkthrough, the three-level verification strategy, and the key design pitfalls (MEM_LATENCY, FWFT idiom, weight reversal, Icarus limitations).
 
 ---
 
@@ -107,8 +122,10 @@ Read this last. It ties everything together: complete data flow diagrams, systol
 
 **Steps 1–7** cover the HBM kernel (DMA engine, AXI4 mastery, Vitis packaging).
 **Steps 8–16** cover the systolic array (FP32 arithmetic → PE → array → MXU controller → cocotb verification).
-**Step 17** connects them and explains the design decisions.
+**Steps 17–18** cover the HBM integration layer (matmul_top + 512-bit test harness).
+**Step 19** connects everything and explains the design decisions.
 
-The two sentences to carry through:
+The three sentences to carry through:
 - **Kernel:** reads from HBM via AXI4 bursts, streams through a FWFT FIFO, writes back — zero-bubble DMA.
 - **Compute:** the systolic array computes OUT = X × W^T using a weight-stationary dataflow with staggered activation feeding.
+- **Integration:** matmul_top unpacks 512-bit HBM words into per-element BRAMs, runs the MXU, then repacks results — the bridge between memory bandwidth and compute.

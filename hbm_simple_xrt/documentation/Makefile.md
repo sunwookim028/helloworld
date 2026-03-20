@@ -8,14 +8,16 @@ Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and ex
 
 ## Targets
 
-| Target                | Description                                        |
-|-----------------------|----------------------------------------------------|
-| `make all`            | Runs both `test_systolic_array` and `test_mxu`     |
-| `make test_systolic_array` | Compile + run 16×16 systolic array tests      |
-| `make test_mxu`       | Compile + run 16×16 MXU tests                     |
-| `make test_systolic_4x4` | Compile + run 4×4 systolic array tests          |
-| `make test_mxu_4x4`   | Compile + run 4×4 MXU tests                       |
-| `make clean`           | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd` |
+| Target                      | Description                                                   |
+|-----------------------------|---------------------------------------------------------------|
+| `make all`                  | Runs `test_systolic_array`, `test_mxu`, and `test_matmul`    |
+| `make test_systolic_array`  | Compile + run 16×16 systolic array tests (19 tests)           |
+| `make test_mxu`             | Compile + run 16×16 MXU tests (19 tests)                      |
+| `make test_matmul`          | Compile + run 16×16 matmul_top HBM integration tests (9 tests)|
+| `make test_systolic_4x4`    | Compile + run 4×4 systolic array tests (fast regression)      |
+| `make test_mxu_4x4`         | Compile + run 4×4 MXU tests                                   |
+| `make test_matmul_4x4`      | Compile + run 4×4 matmul_top tests (fastest regression)       |
+| `make clean`                | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd`    |
 
 ## How It Works
 
@@ -65,9 +67,10 @@ SRC_FP32     = fp32_add.sv, fp32_mul.sv
 SRC_PE       = pe.sv + SRC_FP32
 SRC_SYSTOLIC = systolic_array.sv + SRC_PE
 SRC_MXU      = mxu.sv + SRC_SYSTOLIC
+SRC_MATMUL   = matmul_top.sv + SRC_MXU
 ```
 
-All source files are in `../src/` relative to the verification directory.
+All source files are in `../src/` relative to the verification directory. The `SRC_MATMUL` chain includes all RTL because `matmul_top` instantiates the full `mxu` hierarchy.
 
 ### Environment Setup
 
@@ -89,4 +92,4 @@ COCOTB_LIBS = $(shell python3 -c "import cocotb; ...")
 
 - **WSL required:** This Makefile is designed to run under WSL (Windows Subsystem for Linux). The Windows version of Icarus Verilog cannot load cocotb's VPI DLL due to a subsystem version mismatch.
 - **No `SIM` variable:** Unlike cocotb's standard Makefile.sim flow, this Makefile directly invokes `iverilog` and `vvp` for full control over compilation flags.
-- **4×4 variants share test files:** The same `test_systolic_array.py` and `test_mxu.py` are used for both 4×4 and 16×16, with `N` read from environment variables (`SYSTOLIC_N`, `MXU_N`).
+- **4×4 variants share test files:** The same Python test files are used for both 4×4 and 16×16, with `N` read from environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`).

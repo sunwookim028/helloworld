@@ -27,8 +27,9 @@ sim_build/
 results.xml
 *.vcd
 
-# Machine-specific test runner
+# Machine-specific test runner and its documentation (contains hardcoded paths)
 hbm_simple_xrt/verification/run_test.sh
+hbm_simple_xrt/documentation/run_test_sh.md
 
 # OS
 .DS_Store

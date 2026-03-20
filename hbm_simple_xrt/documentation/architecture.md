@@ -1,9 +1,10 @@
 # Master Architecture — HBM Data Mover + 16×16 Systolic Array
 
-This document explains how all the RTL and verification files connect together. The project contains two independent subsystems that share a source directory:
+This document explains how all the RTL and verification files connect together. The project contains three layers:
 
-1. **HBM Data Mover Kernel** — A Vitis RTL kernel that performs DMA copies through HBM on an Alveo U280. This is the FPGA-deployable subsystem.
-2. **Systolic Array Compute Engine** — A 16×16 weight-stationary matrix multiply unit with full cocotb verification. This is the compute subsystem (not yet integrated into the kernel).
+1. **HBM Data Mover Kernel** — A Vitis RTL kernel that performs DMA copies through HBM on an Alveo U280. FPGA-deployable.
+2. **Systolic Array Compute Engine** — A 16×16 weight-stationary matrix multiply unit with full cocotb verification.
+3. **HBM Integration Layer** — `matmul_top`: bridges the 512-bit HBM interface to the MXU's 32-bit element interface.
 
 ---
 
@@ -117,41 +118,48 @@ mxu.sv (matrix unit controller)
         ├── fp32_mul.sv  (combinational FP32 multiplier)
         └── fp32_add.sv  (combinational FP32 adder)
 
-Shared: fifo4.sv is used by Subsystem A;
+Integration Layer (Subsystem C)
+────────────────────────────────
+matmul_top.sv (HBM-width wrapper)
+└── mxu.sv (full Subsystem B hierarchy)
+
+Shared: fifo4.sv used by Subsystem A;
         fp32_mul.sv, fp32_add.sv, pe.sv are from minitpu
 ```
 
 ### All Source Files
 
-| File                 | Subsystem | Role                                              |
-|----------------------|-----------|----------------------------------------------------|
-| `krnl_vadd.sv`       | A         | Kernel top-level: FSM + submodule instantiation     |
-| `krnl_vadd_ctrl.v`   | A         | AXI4-Lite slave, ap_ctrl_hs register map            |
-| `krnl_vadd_rd_mst.v` | A         | AXI4 burst read master (HBM → FIFO)                |
-| `krnl_vadd_wr_mst.v` | A         | AXI4 burst write master (FIFO → HBM)               |
-| `fifo4.sv`           | A         | FWFT FIFO (512-bit, depth 64)                       |
-| `fp32_mul.sv`        | B         | IEEE-754 FP32 multiply (combinational)              |
-| `fp32_add.sv`        | B         | IEEE-754 FP32 add (combinational)                   |
-| `pe.sv`              | B         | Single MAC unit with double-buffered weights        |
-| `systolic_array.sv`  | B         | N×N PE grid with generate-block wiring              |
-| `mxu.sv`             | B         | FSM + memory interface + array orchestration        |
+| File                 | Layer | Role                                              |
+|----------------------|-------|---------------------------------------------------|
+| `krnl_vadd.sv`       | A     | Kernel top-level: FSM + submodule instantiation   |
+| `krnl_vadd_ctrl.v`   | A     | AXI4-Lite slave, ap_ctrl_hs register map          |
+| `krnl_vadd_rd_mst.v` | A     | AXI4 burst read master (HBM → FIFO)              |
+| `krnl_vadd_wr_mst.v` | A     | AXI4 burst write master (FIFO → HBM)             |
+| `fifo4.sv`           | A     | FWFT FIFO (512-bit, depth 64)                     |
+| `fp32_mul.sv`        | B     | IEEE-754 FP32 multiply (combinational)            |
+| `fp32_add.sv`        | B     | IEEE-754 FP32 add (combinational)                 |
+| `pe.sv`              | B     | Single MAC unit with double-buffered weights      |
+| `systolic_array.sv`  | B     | N×N PE grid with generate-block wiring            |
+| `mxu.sv`             | B     | FSM + memory interface + array orchestration      |
+| `matmul_top.sv`      | C     | 512-bit HBM ↔ 32-bit MXU bridge via BRAMs        |
 
 ### Non-RTL Files
 
-| File                 | Subsystem | Role                                              |
-|----------------------|-----------|----------------------------------------------------|
-| `kernel.xml`         | A         | Vitis kernel descriptor (ports, args, offsets)      |
-| `package_kernel.tcl` | A         | Vivado batch script → `.xo` packaging              |
-| `krnl_vadd.cfg`      | A         | Vitis linker connectivity (HBM bank assignments)    |
+| File                 | Layer | Role                                              |
+|----------------------|-------|---------------------------------------------------|
+| `kernel.xml`         | A     | Vitis kernel descriptor (ports, args, offsets)    |
+| `package_kernel.tcl` | A     | Vivado batch script → `.xo` packaging            |
+| `krnl_vadd.cfg`      | A     | Vitis linker connectivity (HBM bank assignments)  |
 
 ### Verification Files
 
-| File                      | Tests              | Level                                |
-|---------------------------|--------------------|--------------------------------------|
-| `test_systolic_array.py`  | 19 tests           | Array-level (direct protocol drive)  |
-| `test_mxu.py`             | 19 tests           | System-level (memory-mapped I/O)     |
-| `Makefile`                | Build orchestration| Compiles RTL, runs cocotb via VVP    |
-| `run_test.sh`             | Environment helper | Clean WSL PATH for make invocation   |
+| File                      | Tests               | Level                                          |
+|---------------------------|---------------------|------------------------------------------------|
+| `test_systolic_array.py`  | 19 tests            | Array-level (direct protocol drive)            |
+| `test_mxu.py`             | 19 tests            | MXU-level (32-bit memory model)                |
+| `test_matmul_top.py`      | 9 tests             | Integration-level (512-bit HBM memory model)   |
+| `Makefile`                | Build orchestration | Compiles RTL, runs cocotb via VVP              |
+| `run_test.sh`             | Environment helper  | Clean WSL PATH for make invocation             |
 
 ---
 
@@ -282,7 +290,7 @@ Outputs begin emerging ~N cycles after first X input
 
 ## Verification Architecture
 
-### Two-Level Testing Strategy
+### Three-Level Testing Strategy
 
 ```
 Level 1: Systolic Array Tests (test_systolic_array.py)
@@ -303,26 +311,49 @@ Level 1: Systolic Array Tests (test_systolic_array.py)
 Level 2: MXU Tests (test_mxu.py)
 ┌──────────────────────────────────────────────┐
 │  Python test code                            │
-│  ├── Writes W and X to memory dict           │
+│  ├── Writes W and X to 32-bit memory dict    │
 │  ├── Pulses start, waits for done            │
-│  └── Reads output from memory dict           │
+│  └── Reads output from 32-bit memory dict    │
 │                                              │
 │  ┌────────────────────────────────────────┐  │
 │  │              mxu (DUT)                 │  │
 │  │  ├── FSM (load, run, capture, store)   │  │
 │  │  ├── systolic_array                    │  │
 │  │  │   └── N×N pe instances              │  │
-│  │  └── Memory interface                  │  │
+│  │  └── Memory interface (32-bit)         │  │
 │  └────────────────────────────────────────┘  │
 │                                              │
 │  ┌────────────────────────────────────────┐  │
 │  │  memory_driver (cocotb coroutine)      │  │
-│  │  └── Python dict-based memory model    │  │
+│  │  └── Python dict, 32-bit per address   │  │
+│  └────────────────────────────────────────┘  │
+└──────────────────────────────────────────────┘
+
+Level 3: matmul_top Tests (test_matmul_top.py)
+┌──────────────────────────────────────────────┐
+│  Python test code                            │
+│  ├── pack_matrix() → 512-bit HBM words       │
+│  ├── Pulses start, waits for done            │
+│  └── unpack_matrix() ← 512-bit HBM words     │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │          matmul_top (DUT)              │  │
+│  │  ├── Top FSM (LOAD_W/X, COMPUTE, STORE)│  │
+│  │  ├── w_bram, x_bram, out_bram          │  │
+│  │  └── mxu (full Level 2 hierarchy)      │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │  memory_driver (cocotb coroutine)      │  │
+│  │  └── Python dict, 512-bit per address  │  │
 │  └────────────────────────────────────────┘  │
 └──────────────────────────────────────────────┘
 ```
 
-**Why two levels?** If a test fails at Level 2 (MXU) but passes at Level 1 (systolic array), the bug is in the FSM or memory interface, not the compute core. This isolation saved significant debugging time during development — the MEM_LATENCY timing issue was quickly identified as an MXU-level problem because all systolic array tests passed.
+**Why three levels?**
+- A Level 1 failure isolates the bug to the systolic array compute core or FP32 arithmetic.
+- A Level 2 failure (with Level 1 passing) isolates the bug to the MXU FSM or memory interface.
+- A Level 3 failure (with Level 2 passing) isolates the bug to `matmul_top`'s HBM packing/unpacking logic or BRAM latch timing.
 
 ### Test Matrix
 
@@ -332,8 +363,9 @@ All tests run at both N=4 and N=16:
                      4×4          16×16
 Systolic Array:    19/19 PASS    19/19 PASS
 MXU:               19/19 PASS    19/19 PASS
+matmul_top:         9/9  PASS     9/9  PASS
 ────────────────────────────────────────────
-Total:                   76/76 PASS
+Total:                   94/94 PASS
 ```
 
 ---
@@ -366,16 +398,62 @@ Weights are loaded in reversed row order (`W[c][N-1-p]`) so they pipeline correc
 
 ---
 
+---
+
+## Subsystem C: HBM Integration Layer
+
+`matmul_top` is the bridge between Subsystems A and B. It presents the same 512-bit word-addressed memory interface as HBM, and internally drives the MXU with per-element BRAM reads.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                       matmul_top                               │
+│                                                                │
+│  512-bit HBM interface          32-bit MXU interface          │
+│  (word-addressed)               (element-addressed)           │
+│                                                                │
+│  ┌──────────┐  unpack    ┌───────────┐    ┌───────────────┐   │
+│  │mem_rd_data│ 16 elems  │  w_bram   │───►│               │   │
+│  │(512-bit) │──────────►│  x_bram   │    │   mxu.sv      │   │
+│  └──────────┘  per word  └───────────┘    │   (Subsystem  │   │
+│                                           │    B)         │   │
+│  ┌──────────┐  pack      ┌───────────┐◄───│               │   │
+│  │mem_wr_data│ 16 elems  │  out_bram │    └───────────────┘   │
+│  │(512-bit) │◄──────────│           │                        │
+│  └──────────┘  per word  └───────────┘                        │
+│                                                                │
+│  Top FSM:                                                      │
+│  LOAD_W → LOAD_X → COMPUTE → STORE                            │
+│  (HBM_MEM_LATENCY=2 wait per word on reads and writes)        │
+└────────────────────────────────────────────────────────────────┘
+         │                                           │
+    HBM words in                              HBM words out
+  (W and X matrices)                        (OUT matrix)
+```
+
+### Data Translation
+
+At N=16 with 512-bit HBM and 32-bit elements:
+- Each HBM word holds **16 elements** (`ELEMS_PER_WORD = 512/32`)
+- Each N×N matrix requires **16 HBM words** (`WORDS_PER_MATRIX = 256/16`)
+- Total HBM transactions per matrix multiply: 32 reads (W+X) + 16 writes (OUT) = **48 HBM word transactions**
+
+At N=4:
+- Each N×N matrix (16 elements) fits in **exactly one** HBM word
+- Total: 2 reads + 1 write = **3 HBM word transactions**
+
+---
+
 ## Origin and Lineage
 
 All RTL modules are adapted from the **minitpu** project (`minitpu/tpu/src/compute_tile/`):
 
-| This project           | minitpu original                | Changes                                |
-|------------------------|---------------------------------|----------------------------------------|
-| `fp32_mul.sv`          | `fp32_mul.sv`                   | Direct copy                            |
-| `fp32_add.sv`          | `fp32_add.sv`                   | Direct copy                            |
-| `pe.sv`                | `pe.sv`                         | Direct copy                            |
-| `systolic_array.sv`    | `systolic.sv`                   | Hardcoded 4×4 → parameterized N×N      |
+| This project           | minitpu original                | Changes                                        |
+|------------------------|---------------------------------|------------------------------------------------|
+| `fp32_mul.sv`          | `fp32_mul.sv`                   | Direct copy                                    |
+| `fp32_add.sv`          | `fp32_add.sv`                   | Direct copy                                    |
+| `pe.sv`                | `pe.sv`                         | Direct copy                                    |
+| `systolic_array.sv`    | `systolic.sv`                   | Hardcoded 4×4 → parameterized N×N              |
 | `mxu.sv`               | `mxu.sv`                        | Hardcoded if-blocks → parameterized loops, MEM_LATENCY=2 |
+| `matmul_top.sv`        | *(new)*                         | New integration layer; no minitpu equivalent   |
 
 The test suites are new but follow the same protocol and mathematical conventions (`OUT = X × W^T`) as minitpu's verification.

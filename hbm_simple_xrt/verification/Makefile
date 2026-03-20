@@ -27,11 +27,12 @@ SRC_FP32      = $(SRC_DIR)/fp32_add.sv $(SRC_DIR)/fp32_mul.sv
 SRC_PE        = $(SRC_DIR)/pe.sv $(SRC_FP32)
 SRC_SYSTOLIC  = $(SRC_DIR)/systolic_array.sv $(SRC_PE)
 SRC_MXU       = $(SRC_DIR)/mxu.sv $(SRC_SYSTOLIC)
+SRC_MATMUL    = $(SRC_DIR)/matmul_top.sv $(SRC_MXU)
 
 #==============================================================================
-.PHONY: all clean test_systolic_array test_mxu
+.PHONY: all clean test_systolic_array test_mxu test_matmul test_matmul_4x4
 
-all: test_systolic_array test_mxu
+all: test_systolic_array test_mxu test_matmul
 
 #==============================================================================
 # Systolic array test (N=16 by default)
@@ -63,6 +64,35 @@ test_mxu: $(SIM_BUILD)/mxu.vvp
 $(SIM_BUILD)/mxu.vvp: $(SRC_MXU) | $(SIM_BUILD)
 	$(IVERILOG) $(IVFLAGS) -o $@ -s mxu \
 		$(SRC_MXU)
+
+#==============================================================================
+# matmul_top integration test (N=16 by default)
+#==============================================================================
+test_matmul: $(SIM_BUILD)/matmul.vvp
+	@echo "=== Running matmul_top tests ==="
+	MODULE=test_matmul_top \
+	COCOTB_TEST_MODULES=test_matmul_top \
+	TOPLEVEL=matmul_top \
+	TOPLEVEL_LANG=verilog \
+	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
+
+$(SIM_BUILD)/matmul.vvp: $(SRC_MATMUL) | $(SIM_BUILD)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top \
+		$(SRC_MATMUL)
+
+test_matmul_4x4: $(SIM_BUILD)/matmul_4x4.vvp
+	@echo "=== Running 4x4 matmul_top tests ==="
+	MODULE=test_matmul_top \
+	COCOTB_TEST_MODULES=test_matmul_top \
+	TOPLEVEL=matmul_top \
+	TOPLEVEL_LANG=verilog \
+	MATMUL_N=4 \
+	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
+
+$(SIM_BUILD)/matmul_4x4.vvp: $(SRC_MATMUL) | $(SIM_BUILD)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top \
+		-Pmatmul_top.N=4 \
+		$(SRC_MATMUL)
 
 #==============================================================================
 # Small array tests (N=4, for quick regression / cross-check with minitpu)
