@@ -36,6 +36,5 @@ hbm_simple_xrt/documentation/run_test_sh.md
 *.swp
 *~
 
-# cocotb Virtual Environment
-
-**/cocotb_env
+# Virtual Environment
+**/venv
