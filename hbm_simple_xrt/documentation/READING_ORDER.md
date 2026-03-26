@@ -87,9 +87,6 @@ Read `run_matmul()` (line 71) carefully — it drives the **exact same protocol*
 ### 15. `verification/test_mxu.py` → [test_mxu.md](test_mxu.md)
 Read `memory_driver()` (line 45) first — it's the cocotb coroutine that models memory for the MXU. Then read `run_matmul()` (line 107) — it just loads matrices, pulses start, and waits for done. The tests are structurally identical to step 14 but exercise the full FSM + memory path.
 
-### 16. `verification/run_test.sh` → [run_test_sh.md](run_test_sh.md)
-Five lines. Only read if you're wondering why tests are run through a wrapper script (answer: Windows PATH with parentheses breaks WSL bash).
-
 ---
 
 ## Part 2.5: HBM Integration Layer
@@ -114,9 +111,9 @@ Read this last. It ties everything together: complete data flow diagrams, systol
 
 ## Summary
 **Steps 1–7** cover the HBM kernel (DMA engine, AXI4 mastery, Vitis packaging).
-**Steps 8–16** cover the systolic array (FP32 arithmetic → PE → array → MXU controller → cocotb verification).
-**Steps 17–18** cover the HBM integration layer (matmul_top + 512-bit test harness).
-**Step 19** connects everything and explains the design decisions.
+**Steps 8–15** cover the systolic array (FP32 arithmetic → PE → array → MXU controller → cocotb verification).
+**Steps 16–17** cover the HBM integration layer (matmul_top + 512-bit test harness).
+**Step 18** connects everything and explains the design decisions.
 
 The three sentences to carry through:
 - **Kernel:** reads from HBM via AXI4 bursts, streams through a FWFT FIFO, writes back — zero-bubble DMA.

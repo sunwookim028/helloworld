@@ -19,7 +19,7 @@ VIVADO  := vivado
 VPP     := v++
 
 # ── Host build flags ─────────────────────────────────────────────────────────
-# XRT 2025.1 default install path; override with: make XRT_ROOT=/your/path host
+# XRT default install path; override with: make XRT_ROOT=/your/path host
 XRT_ROOT ?= /opt/xilinx/xrt
 CXXFLAGS := -I$(XRT_ROOT)/include -std=c++17 -Wall -O0 -g
 LDFLAGS  := -L$(XRT_ROOT)/lib -lxrt_coreutil -luuid -pthread
@@ -38,7 +38,7 @@ TARGET      := hw
 VPP_FLAGS   := -t $(TARGET) --platform $(PLATFORM) --save-temps
 VPP_LDFLAGS := --config krnl_vadd.cfg
 
-# ── VADD RTL source files (explicit list — excludes systolic array RTL) ──────
+# ── VADD RTL source files (DMA engine only) ──────────────────────────────────
 VADD_RTL_SRCS := \
     src/krnl_vadd.sv \
     src/krnl_vadd_ctrl.v \
@@ -46,8 +46,22 @@ VADD_RTL_SRCS := \
     src/krnl_vadd_wr_mst.v \
     src/fifo4.sv
 
+# ── Systolic array + MXU + HBM integration RTL ───────────────────────────────
+MATMUL_RTL_SRCS := \
+    src/fp32_mul.sv \
+    src/fp32_add.sv \
+    src/pe.sv \
+    src/systolic_array.sv \
+    src/mxu.sv \
+    src/matmul_top.sv
+
+# ── All RTL: DMA engine + full systolic array hierarchy ───────────────────────
+# Used by build_full. krnl_vadd.sv is still the kernel top — wire matmul_top
+# into krnl_vadd.sv before build_full produces a functionally integrated kernel.
+ALL_RTL_SRCS := $(VADD_RTL_SRCS) $(MATMUL_RTL_SRCS)
+
 # ── Targets ──────────────────────────────────────────────────────────────────
-.PHONY: all build clean host
+.PHONY: all build build_full clean host
 
 all: host build
 
@@ -67,10 +81,23 @@ krnl_vadd.xo: $(VADD_RTL_SRCS) kernel.xml package_kernel.tcl
 	$(VIVADO) -mode batch -source package_kernel.tcl \
 	    -tclargs krnl_vadd $@ kernel.xml $(VADD_RTL_SRCS)
 
-# ── Bitstream: link .xo to .xclbin (same as HLS version) ────────────────────
+# ── Bitstream: link .xo to .xclbin ───────────────────────────────────────────
 build: krnl_vadd.xclbin
 
 krnl_vadd.xclbin: krnl_vadd.xo
+	$(VPP) -l $(VPP_FLAGS) $(VPP_LDFLAGS) -o $@ $<
+
+# ── Full build: DMA engine + systolic array RTL ───────────────────────────────
+# Packages all RTL (VADD + MATMUL) through Vivado, then links to .xclbin.
+# krnl_vadd.sv remains the Vitis kernel top. To produce a functionally
+# integrated kernel, instantiate matmul_top inside krnl_vadd.sv first.
+build_full: krnl_vadd_full.xclbin
+
+krnl_vadd_full.xo: $(ALL_RTL_SRCS) kernel.xml package_kernel.tcl
+	$(VIVADO) -mode batch -source package_kernel.tcl \
+	    -tclargs krnl_vadd $@ kernel.xml $(ALL_RTL_SRCS)
+
+krnl_vadd_full.xclbin: krnl_vadd_full.xo
 	$(VPP) -l $(VPP_FLAGS) $(VPP_LDFLAGS) -o $@ $<
 
 # ── Clean ─────────────────────────────────────────────────────────────────────
@@ -78,4 +105,4 @@ clean:
 	rm -f hbm_simple_xrt tensor_test
 	rm -rf *.xo *.xclbin *.xclbin.info *.xclbin.link_summary *.jou *.log
 	rm -rf _x .Xil .run .ipcache
-	rm -rf kernel_pack_tmp packaged_kernel_krnl_vadd
+	rm -rf kernel_pack_tmp packaged_kernel_krnl_vadd packaged_kernel_krnl_vadd_full

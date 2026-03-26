@@ -1,82 +1,128 @@
-# HBM Data Mover
+# HBM Data Mover + Systolic Array — Command Reference
 
-This project demonstrates a high-bandwidth **Data Mover** on the Alveo U280 FPGA using High Bandwidth Memory (HBM).
+Two separate environments are used. Linux server for hardware builds and running on the FPGA. WSL (Windows Subsystem for Linux) for RTL simulation only.
 
-## Overview
-The design acts as a pure DMA copy engine. It reads data from one HBM bank and writes it to another, saturating the AXI channels to measure peak realizable bandwidth on hardware.
+---
 
-## Results (Measured on U280)
-*   **Single Bank Reuse**: ~13.5 GB/s (Limited by bank contention)
-*   **Multi-Bank Transfer**: ~28.9 GB/s
-    *   Efficiency: ~14.4 GB/s per bank (Theoretical max ~14.9 GB/s).
-*   **Software-Driven Tensor Operations**: Tested via `tensor_test`.
-    *   Bulk Copy: 8.47 GB/s
-    *   Tiled/Row-by-Row Copy: 0.17 GB/s (Demonstrates ~84x software overhead, justifying hardware descriptors).
-*   **Connectivity**: Limited to `HBM[0:3]` by bitstream configuration.
+## Environment Setup (Linux server — run once per shell session)
 
-### Test Details
-**Standard Bandwidth Test** (`./run.sh hbm`):
-- Case 1 (Single Bank): All buffers in Bank 0 → 14.6 GB/s
-- Case 2 (Multi-Bank): Buffers in Banks 1,2,3 → 27.8 GB/s (near-peak efficiency)
-- Case 3 (High Banks 4,5,6): **Failed** - `std::bad_alloc` (connectivity limited to HBM[0:3])
+Source Vitis and XRT before any hardware build or FPGA run command:
 
-**Tensor Scenario Test** (`./run.sh tensor`):
-- Bulk Copy (1M elements, single call): 9.2 GB/s
-- Software Orchestration (1024 calls of 1K elements): 0.19 GB/s
-- **Overhead**: 73x slowdown demonstrates need for hardware descriptor support
-
-## Directory Structure
-```
-hbm_simple_xrt/
-├── src/
-│   ├── host.cpp              # Standard bandwidth test (Cases 1-3)
-│   ├── host_tensor.cpp       # Tensor scenario test (software orchestration)
-│   └── krnl_vadd.cpp         # 512-bit pure copy kernel
-├── krnl_vadd.cfg             # Linker config: HBM bank connectivity
-├── xrt.ini                   # Runtime config: profiling/debug settings
-├── Makefile                  # Build system (host + kernel)
-├── run.sh                    # Helper script with XRT environment setup
-├── hbm_simple_xrt            # Compiled host executable
-├── tensor_test               # Compiled tensor test executable
-├── krnl_vadd.xo              # Compiled kernel object (161KB)
-└── krnl_vadd.xclbin          # Hardware bitstream (49MB)
-```
-
-## Configuration Files
-
-### `krnl_vadd.cfg`
-*   **Role**: Linker Configuration File
-*   **Usage**: Tells the `v++ -l` (link) command how to map kernel arguments (`in1`, `in2`, `out`) to specific physical HBM banks (`HBM[0:3]`). Without this, the tools wouldn't know which memory interfaces to wire up.
-
-### `xrt.ini`
-*   **Role**: XRT Runtime Configuration
-*   **Usage**: Read by the XRT library (on the host) at execution time. Enables features like Native Trace (`[Debug] native_xrt_trace=true`), which generates profiling data (`native_trace.csv`, `summary.csv`). Useful for debugging and profiling but not strictly required for production.
-
-## Building and Running
-### Prerequisites
-*   Linux (required — Vitis and XRT do not support Windows)
-*   Xilinx Vitis (includes Vivado and v++) installed on Linux
-*   Xilinx XRT installed on Linux
-*   Alveo U280 platform target (e.g. `xilinx_u280_gen3x16_xdma_1_202211_1`)
-
-### Build
 ```bash
-cd hbm_simple_xrt
+source /opt/xilinx/Vitis/2023.2/settings64.sh
+source /opt/xilinx/xrt/setup.sh
+```
+
+---
+
+## Building (Linux server, from helloworld/hbm_simple_xrt/)
+
+**Full build — host binaries + bitstream (start here if building from scratch):**
+```bash
 make
 ```
 
-### Run
-*Ensure XRT environment is sourced before running:*
+**Host binaries only — fast, no FPGA toolchain needed:**
 ```bash
-source /opt/xilinx/xrt/setup.sh
-# OR use the provided wrapper script:
+make host
+```
+Use this when you only changed host C++ code (host.cpp or host_tensor.cpp).
+
+**RTL packaging only — Vivado packages RTL into .xo (minutes, not hours):**
+```bash
+make krnl_vadd.xo
+```
+Use this to verify Vivado can elaborate your RTL without committing to full implementation.
+
+**Bitstream only — v++ links .xo to .xclbin (requires .xo to exist, takes hours):**
+```bash
+make build
+```
+
+**Full RTL build — DMA engine + systolic array RTL packaged together:**
+```bash
+make build_full
+```
+Produces krnl_vadd_full.xclbin. Wire matmul_top into krnl_vadd.sv before using this
+for a functionally integrated kernel.
+
+**Clean all build artifacts:**
+```bash
+make clean
+```
+Always run this before rebuilding after RTL changes, or after a failed build.
+
+---
+
+## Running on Hardware (Linux server, from helloworld/hbm_simple_xrt/)
+
+XRT must be sourced first. The run.sh wrapper handles this automatically:
+
+**HBM bandwidth test — single-bank, multi-bank, high banks:**
+```bash
 ./run.sh hbm
 ```
 
+**Tensor scenario test — bulk transfer vs software-orchestrated transfers:**
 ```bash
-# Standard Bandwidth Test (Manual)
-./hbm_simple_xrt -x krnl_vadd.xclbin -d 0
+./run.sh tensor
+```
 
-# Software Tensor Scenario Test (Manual)
-./tensor_test -x krnl_vadd.xclbin -d 0
+**Run manually (after sourcing XRT yourself):**
+```bash
+./hbm_simple_xrt -x krnl_vadd.xclbin -d 0
+./tensor_test    -x krnl_vadd.xclbin -d 0
+```
+`-d 0` selects device index 0. Change if multiple Alveo cards are in the system.
+
+---
+
+## RTL Simulation (WSL only — do NOT run on Linux server)
+
+All simulation commands must be run through WSL using this exact pattern.
+Do not use `wsl --` (Windows PATH leaks in and breaks the shell).
+
+```bash
+wsl -u leishen -e bash -c "source /mnt/c/Users/benso/coding/hbm_context/helloworld/cocotb_env/bin/activate && cd /mnt/c/Users/benso/coding/hbm_context/helloworld/hbm_simple_xrt/verification && make <target> 2>&1 | tail -80"
+```
+
+Replace `<target>` with one of the following:
+
+| Target | What it runs |
+|--------|-------------|
+| `all` | All three suites at N=16 (systolic_array + mxu + matmul_top) |
+| `test_systolic_array` | 19 systolic array tests, N=16 |
+| `test_mxu` | 19 MXU tests, N=16 |
+| `test_matmul` | 9 matmul_top integration tests, N=16 |
+| `test_systolic_4x4` | 19 systolic array tests, N=4 (fast) |
+| `test_mxu_4x4` | 19 MXU tests, N=4 (fast) |
+| `test_matmul_4x4` | 9 matmul_top tests, N=4 (fast) |
+| `clean` | Remove sim_build/, results.xml, __pycache__, *.vcd |
+
+---
+
+## Measured Results (U280 Hardware)
+
+| Test | Result |
+|------|--------|
+| Single-bank HBM | ~13.5 GB/s |
+| Multi-bank HBM (banks 0-3) | ~28.9 GB/s |
+| Bulk tensor copy (1M elements) | ~9.2 GB/s |
+| Software-orchestrated (1024 × 1K) | ~0.19 GB/s (~73x overhead) |
+
+HBM connectivity is limited to HBM[0:3] by the bitstream configuration.
+
+---
+
+## Platform and Toolchain
+
+- **FPGA:** Xilinx Alveo U280
+- **Vitis/v++ version:** 2023.2
+- **Platform shell:** xilinx_u280_gen3x16_xdma_1_202211_1 (2022.1 shell installed on this machine)
+- **XRT:** /opt/xilinx/xrt
+- **Simulator (WSL):** Icarus Verilog 12.0 with cocotb 2.0.1
+
+To check what platform shells are installed on the machine:
+```bash
+v++ --list_platforms
 ```
