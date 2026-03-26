@@ -4,7 +4,7 @@
 #   vivado -mode batch -source package_kernel.tcl \
 #          -tclargs <kernel_name> <xo_output_path> <kernel_xml> <rtl_file1> [rtl_file2 ...]
 #
-# Requires: Vivado 2025.1 (or 2022.1+) with Vitis install (package_xo command).
+# Requires: Vivado 2023.2 (or 2022.1+) with Vitis install (package_xo command).
 # The package_xo command is provided by sourcing the Vitis helper TCL script
 # that Vivado loads automatically when Vitis is installed.
 #

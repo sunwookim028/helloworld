@@ -1,4 +1,4 @@
-# HBM Data Mover Makefile — RTL kernel edition (Vivado/Vitis 2025.1)
+# HBM Data Mover Makefile — RTL kernel edition (Vivado/Vitis 2023.2)
 #
 # Build flow:
 #   1. Host (unchanged):   g++ src/host.cpp      → hbm_simple_xrt
@@ -25,13 +25,13 @@ CXXFLAGS := -I$(XRT_ROOT)/include -std=c++17 -Wall -O0 -g
 LDFLAGS  := -L$(XRT_ROOT)/lib -lxrt_coreutil -luuid -pthread
 
 # ── Kernel build settings ────────────────────────────────────────────────────
-# Platform for Vivado/Vitis 2025.1 — Alveo U280 Gen3x16 XDMA
+# Platform for Vivado/Vitis 2023.2 — Alveo U280 Gen3x16 XDMA
 # To find installed platforms:  v++ --list_platforms  OR  ls $XILINX_VITIS/platforms/
 # Common U280 platform names by tool version:
 #   2022.1: xilinx_u280_gen3x16_xdma_1_202211_1
+#   2023.2: xilinx_u280_gen3x16_xdma_1_202320_1
 #   2024.x: xilinx_u280_gen3x16_xdma_1_202410_1
-#   2025.1: verify with v++ --list_platforms after sourcing settings64.sh
-PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202211_1
+PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202320_1
 TARGET      := hw
 VPP_FLAGS   := -t $(TARGET) --platform $(PLATFORM) --save-temps
 VPP_LDFLAGS := --config krnl_vadd.cfg
