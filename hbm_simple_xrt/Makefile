@@ -25,13 +25,15 @@ CXXFLAGS := -I$(XRT_ROOT)/include -std=c++17 -Wall -O0 -g
 LDFLAGS  := -L$(XRT_ROOT)/lib -lxrt_coreutil -luuid -pthread
 
 # ── Kernel build settings ────────────────────────────────────────────────────
-# Platform for Vivado/Vitis 2023.2 — Alveo U280 Gen3x16 XDMA
+# Platform for Vitis 2023.2 + U280 shell — Alveo U280 Gen3x16 XDMA
+# The tool version (Vitis 2023.2) and the platform shell version are independent.
+# This machine has the 2022.1 platform shell installed under Vitis 2023.2.
 # To find installed platforms:  v++ --list_platforms  OR  ls $XILINX_VITIS/platforms/
 # Common U280 platform names by tool version:
-#   2022.1: xilinx_u280_gen3x16_xdma_1_202211_1
+#   2022.1: xilinx_u280_gen3x16_xdma_1_202211_1  ← installed on this machine
 #   2023.2: xilinx_u280_gen3x16_xdma_1_202320_1
 #   2024.x: xilinx_u280_gen3x16_xdma_1_202410_1
-PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202320_1
+PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202211_1
 TARGET      := hw
 VPP_FLAGS   := -t $(TARGET) --platform $(PLATFORM) --save-temps
 VPP_LDFLAGS := --config krnl_vadd.cfg
