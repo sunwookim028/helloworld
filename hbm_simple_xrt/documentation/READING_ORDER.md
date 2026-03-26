@@ -92,19 +92,19 @@ Read `memory_driver()` (line 45) first — it's the cocotb coroutine that models
 ## Part 2.5: HBM Integration Layer
 This is the bridge between the two subsystems: a wrapper that connects the 512-bit HBM interface from Subsystem A to the 32-bit element interface of Subsystem B. Read after completing both Part 1 and Part 2.
 
-### 17. `src/matmul_top.sv` → [matmul_top.md](matmul_top.md)
+### 16. `src/matmul_top.sv` → [matmul_top.md](matmul_top.md)
 The integration wrapper. Focus on three things:
 1. **The localparam arithmetic** at the top: `ELEMS_PER_WORD = 512/32 = 16`, `WORDS_PER_MATRIX = N²/16` — understand the dimensional translation from HBM words to matrix elements.
 2. **The BRAM latch pattern** (lines 106–120): `bram_rd_addr` is latched one cycle after `mxu_mem_rd_en`, then `mxu_mem_resp_data` is driven combinationally from the latched address. This is what makes MEM_LATENCY=2 work for the MXU reading these BRAMs.
 3. **The store pack loop** (lines 281–288): how the 32-bit `out_bram` elements get merged back into one 512-bit `mem_wr_data` word.
 
-### 18. `verification/test_matmul_top.py` → [test_matmul_top.md](test_matmul_top.md)
+### 17. `verification/test_matmul_top.py` → [test_matmul_top.md](test_matmul_top.md)
 Read `pack_matrix()` and `unpack_matrix()` first — these are the Python-side equivalents of the RTL's HBM word packing/unpacking. Then `memory_driver()`: same coroutine pattern as `test_mxu.py` but now `mem_rd_data` and `mem_wr_data` are 512-bit integers. The `test_hbm_word_boundary` test is the most interesting one to read — it was specifically designed to catch element-ordering bugs in the bit-slice unpack logic.
 
 ---
 
 ## Part 3: The Big Picture
-### 19. `architecture.md` → [architecture.md](architecture.md)
+### 18. `architecture.md` → [architecture.md](architecture.md)
 Read this last. It ties everything together: complete data flow diagrams, systolic timing walkthrough, the three-level verification strategy, and the key design pitfalls (MEM_LATENCY, FWFT idiom, weight reversal, Icarus limitations).
 
 ---
@@ -114,6 +114,7 @@ Read this last. It ties everything together: complete data flow diagrams, systol
 **Steps 8–15** cover the systolic array (FP32 arithmetic → PE → array → MXU controller → cocotb verification).
 **Steps 16–17** cover the HBM integration layer (matmul_top + 512-bit test harness).
 **Step 18** connects everything and explains the design decisions.
+
 
 The three sentences to carry through:
 - **Kernel:** reads from HBM via AXI4 bursts, streams through a FWFT FIFO, writes back — zero-bubble DMA.
