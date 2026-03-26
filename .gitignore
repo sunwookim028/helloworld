@@ -38,3 +38,5 @@ hbm_simple_xrt/documentation/run_test_sh.md
 
 # Virtual Environment
 **/venv
+CLAUDE.md
+.claude/settings.local.json
