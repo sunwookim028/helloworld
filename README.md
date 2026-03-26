@@ -54,7 +54,10 @@ hbm_simple_xrt/
 
 ## Building and Running
 ### Prerequisites
-*   Xilinx Vitis/XRT 2023.2
+*   Linux (required — Vitis and XRT do not support Windows)
+*   Xilinx Vitis (includes Vivado and v++) installed on Linux
+*   Xilinx XRT installed on Linux
+*   Alveo U280 platform target (e.g. `xilinx_u280_gen3x16_xdma_1_202211_1`)
 
 ### Build
 ```bash

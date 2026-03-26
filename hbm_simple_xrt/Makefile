@@ -1,4 +1,4 @@
-# HBM Data Mover Makefile — RTL kernel edition
+# HBM Data Mover Makefile — RTL kernel edition (Vivado/Vitis 2025.1)
 #
 # Build flow:
 #   1. Host (unchanged):   g++ src/host.cpp      → hbm_simple_xrt
@@ -6,7 +6,7 @@
 #   2. RTL kernel:         vivado (package_kernel.tcl) → krnl_vadd.xo
 #   3. Bitstream:          v++ -l                 → krnl_vadd.xclbin
 #
-# RTL sources (src/):
+# VADD RTL sources (src/) — only the DMA copy engine, NOT systolic array:
 #   krnl_vadd.sv          — top-level kernel (Vitis port names: ap_clk, s_axi_control, m_axi_gmem*)
 #   krnl_vadd_ctrl.v      — AXI4-Lite slave, ap_ctrl_hs register map (adapted from minitpu)
 #   krnl_vadd_rd_mst.v    — AXI4 burst read master, 512-bit (gmem0 / in1)
@@ -19,17 +19,30 @@ VIVADO  := vivado
 VPP     := v++
 
 # ── Host build flags ─────────────────────────────────────────────────────────
-CXXFLAGS := -I/opt/xilinx/xrt/include -std=c++17 -Wall -O0 -g
-LDFLAGS  := -L/opt/xilinx/xrt/lib -lxrt_coreutil -luuid -pthread
+# XRT 2025.1 default install path; override with: make XRT_ROOT=/your/path host
+XRT_ROOT ?= /opt/xilinx/xrt
+CXXFLAGS := -I$(XRT_ROOT)/include -std=c++17 -Wall -O0 -g
+LDFLAGS  := -L$(XRT_ROOT)/lib -lxrt_coreutil -luuid -pthread
 
 # ── Kernel build settings ────────────────────────────────────────────────────
-PLATFORM    := xilinx_u280_gen3x16_xdma_1_202211_1
+# Platform for Vivado/Vitis 2025.1 — Alveo U280 Gen3x16 XDMA
+# To find installed platforms:  v++ --list_platforms  OR  ls $XILINX_VITIS/platforms/
+# Common U280 platform names by tool version:
+#   2022.1: xilinx_u280_gen3x16_xdma_1_202211_1
+#   2024.x: xilinx_u280_gen3x16_xdma_1_202410_1
+#   2025.1: verify with v++ --list_platforms after sourcing settings64.sh
+PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202211_1
 TARGET      := hw
 VPP_FLAGS   := -t $(TARGET) --platform $(PLATFORM) --save-temps
 VPP_LDFLAGS := --config krnl_vadd.cfg
 
-# ── RTL source files ─────────────────────────────────────────────────────────
-RTL_SRCS := $(wildcard src/*.sv src/*.v)
+# ── VADD RTL source files (explicit list — excludes systolic array RTL) ──────
+VADD_RTL_SRCS := \
+    src/krnl_vadd.sv \
+    src/krnl_vadd_ctrl.v \
+    src/krnl_vadd_rd_mst.v \
+    src/krnl_vadd_wr_mst.v \
+    src/fifo4.sv
 
 # ── Targets ──────────────────────────────────────────────────────────────────
 .PHONY: all build clean host
@@ -45,12 +58,12 @@ hbm_simple_xrt: src/host.cpp
 tensor_test: src/host_tensor.cpp
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
-# ── RTL kernel: package RTL sources as .xo via Vivado ────────────────────────
+# ── RTL kernel: package VADD sources as .xo via Vivado ───────────────────────
 #   package_kernel.tcl calls ipx::package_project then package_xo.
-#   Args: <kernel_name> <output.xo> <kernel.xml> <rtl_src_dir>
-krnl_vadd.xo: $(RTL_SRCS) kernel.xml package_kernel.tcl
+#   Args: <kernel_name> <output.xo> <kernel.xml> <rtl_file1> [rtl_file2 ...]
+krnl_vadd.xo: $(VADD_RTL_SRCS) kernel.xml package_kernel.tcl
 	$(VIVADO) -mode batch -source package_kernel.tcl \
-	    -tclargs krnl_vadd $@ kernel.xml src
+	    -tclargs krnl_vadd $@ kernel.xml $(VADD_RTL_SRCS)
 
 # ── Bitstream: link .xo to .xclbin (same as HLS version) ────────────────────
 build: krnl_vadd.xclbin

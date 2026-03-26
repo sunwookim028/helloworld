@@ -2,16 +2,26 @@
 #
 # Usage (called from Makefile):
 #   vivado -mode batch -source package_kernel.tcl \
-#          -tclargs <kernel_name> <xo_output_path> <kernel_xml> <rtl_src_dir>
+#          -tclargs <kernel_name> <xo_output_path> <kernel_xml> <rtl_file1> [rtl_file2 ...]
 #
-# Requires: Vivado 2022.1+ with Vitis install (package_xo command).
+# Requires: Vivado 2025.1 (or 2022.1+) with Vitis install (package_xo command).
 # The package_xo command is provided by sourcing the Vitis helper TCL script
 # that Vivado loads automatically when Vitis is installed.
+#
+# Change from previous version: RTL files are now passed as explicit arguments
+# instead of globbing a directory. This allows packaging only the VADD DMA
+# engine without pulling in unrelated RTL (e.g. systolic array modules).
 
 set kernel_name [lindex $argv 0]   ;# e.g. krnl_vadd
 set xo_path     [lindex $argv 1]   ;# e.g. krnl_vadd.xo
 set kernel_xml  [lindex $argv 2]   ;# e.g. kernel.xml
-set rtl_src_dir [lindex $argv 3]   ;# e.g. src/
+
+# Remaining args are individual RTL source file paths
+set rtl_files [lrange $argv 3 end]
+
+if {[llength $rtl_files] == 0} {
+    error "No RTL source files specified. Pass files as: <kern> <xo> <xml> file1.sv file2.v ..."
+}
 
 # Target part for Alveo U280
 set part "xcu280-fsvh2892-2L-e"
@@ -19,7 +29,7 @@ set part "xcu280-fsvh2892-2L-e"
 puts "INFO: Packaging kernel '$kernel_name'"
 puts "INFO:   Output XO   : $xo_path"
 puts "INFO:   kernel.xml  : $kernel_xml"
-puts "INFO:   RTL source  : $rtl_src_dir"
+puts "INFO:   RTL files   : $rtl_files"
 
 # ---------------------------------------------------------------------------
 # 1. Create a temporary Vivado project
@@ -28,17 +38,14 @@ set proj_dir "./kernel_pack_tmp"
 create_project -force ${kernel_name}_pack $proj_dir -part $part
 
 # ---------------------------------------------------------------------------
-# 2. Add RTL source files
+# 2. Add RTL source files (explicit list, not glob)
 # ---------------------------------------------------------------------------
-set sv_files  [glob -nocomplain ${rtl_src_dir}/*.sv]
-set v_files   [glob -nocomplain ${rtl_src_dir}/*.v]
-set all_files [concat $sv_files $v_files]
-
-if {[llength $all_files] == 0} {
-    error "No RTL source files found in '$rtl_src_dir'"
+foreach f $rtl_files {
+    if {![file exists $f]} {
+        error "RTL source file not found: $f"
+    }
 }
-
-add_files $all_files
+add_files $rtl_files
 set_property top $kernel_name [current_fileset]
 update_compile_order -fileset sources_1
 
