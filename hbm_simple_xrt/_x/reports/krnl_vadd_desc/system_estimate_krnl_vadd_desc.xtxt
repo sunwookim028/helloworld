@@ -1,0 +1,42 @@
+===============================================================================
+Version:    v++ v2023.2 (64-bit)
+Build:      SW Build 4026344 on 2023-10-11-15:42:10
+Copyright:  Copyright 1986-2023 Xilinx, Inc. All Rights Reserved.
+Created:    Tue Feb 17 16:20:56 2026
+===============================================================================
+
+-------------------------------------------------------------------------------
+Design Name:             krnl_vadd_desc
+Target Device:           xilinx:u280:gen3x16_xdma_1:202211.1
+Target Clock:            300.000000MHz
+Total number of kernels: 1
+-------------------------------------------------------------------------------
+
+Kernel Summary
+Kernel Name     Type  Target              OpenCL Library  Compute Units
+--------------  ----  ------------------  --------------  -------------
+krnl_vadd_desc  c     fpga0:OCL_REGION_0  krnl_vadd_desc  1
+
+
+-------------------------------------------------------------------------------
+OpenCL Binary:     krnl_vadd_desc
+Kernels mapped to: clc_region
+
+Timing Information (MHz)
+Compute Unit      Kernel Name     Module Name                                 Target Frequency  Estimated Frequency
+----------------  --------------  ------------------------------------------  ----------------  -------------------
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc_Pipeline_data_transfer_loop  300.300293        411.015198
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc                              300.300293        411.015198
+
+Latency Information
+Compute Unit      Kernel Name     Module Name                                 Start Interval  Best (cycles)  Avg (cycles)  Worst (cycles)  Best (absolute)  Avg (absolute)  Worst (absolute)
+----------------  --------------  ------------------------------------------  --------------  -------------  ------------  --------------  ---------------  --------------  ----------------
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc_Pipeline_data_transfer_loop  19 ~ 65539      19             1027          65539           63.327 ns        3.423 us        0.218 ms
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc                              236 ~ 67332313  235            79597         67332312        0.783 us         0.265 ms        0.224 sec
+
+Area Information
+Compute Unit      Kernel Name     Module Name                                 FF     LUT    DSP  BRAM  URAM
+----------------  --------------  ------------------------------------------  -----  -----  ---  ----  ----
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc_Pipeline_data_transfer_loop  543    126    0    0     0
+krnl_vadd_desc_1  krnl_vadd_desc  krnl_vadd_desc                              12477  10629  0    90    0
+-------------------------------------------------------------------------------

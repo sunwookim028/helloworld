@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root versionMajor="1" versionMinor="5">
+  <kernel name="krnl_vadd_desc" language="c" vlnv="xilinx.com:hls:krnl_vadd_desc:1.0" attributes="" hash="" preferredWorkGroupSizeMultiple="0" workGroupSize="1" debug="false" compileOptions=" -I /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src" profileType="" interrupt="true" hwControlProtocol="ap_ctrl_chain" countedAutoRestart="0" deadlockDetection="local" mailbox="none" swReset="false">
+    <ports>
+      <port name="M_AXI_GMEM_DESC" mode="master" range="0xFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+      <port name="M_AXI_GMEM0" mode="master" range="0xFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+      <port name="M_AXI_GMEM1" mode="master" range="0xFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+      <port name="M_AXI_GMEM2" mode="master" range="0xFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+      <port name="S_AXI_CONTROL" mode="slave" range="0x54" dataWidth="32" portType="addressable" base="0x0"/>
+    </ports>
+    <args>
+      <arg name="desc_mem" addressQualifier="1" id="0" port="M_AXI_GMEM_DESC" size="0x8" offset="0x10" hostOffset="0x0" hostSize="0x8" type="void*"/>
+      <arg name="data_mem0" addressQualifier="1" id="1" port="M_AXI_GMEM0" size="0x8" offset="0x1C" hostOffset="0x0" hostSize="0x8" type="void*"/>
+      <arg name="data_mem1" addressQualifier="1" id="2" port="M_AXI_GMEM1" size="0x8" offset="0x28" hostOffset="0x0" hostSize="0x8" type="void*"/>
+      <arg name="data_mem2" addressQualifier="1" id="3" port="M_AXI_GMEM2" size="0x8" offset="0x34" hostOffset="0x0" hostSize="0x8" type="void*"/>
+      <arg name="first_desc_addr" addressQualifier="0" id="4" port="S_AXI_CONTROL" size="0x8" offset="0x40" hostOffset="0x0" hostSize="0x8" type="unsigned long long"/>
+      <arg name="max_descriptors" addressQualifier="0" id="5" port="S_AXI_CONTROL" size="0x4" offset="0x4C" hostOffset="0x0" hostSize="0x4" type="unsigned int"/>
+    </args>
+    <compileWorkGroupSize x="1" y="1" z="1"/>
+    <maxWorkGroupSize x="1" y="1" z="1"/>
+  </kernel>
+</root>

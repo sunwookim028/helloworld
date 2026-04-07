@@ -1,0 +1,17 @@
+{
+  "0": {
+    "basicblocks": 9,
+    "calls": "",
+    "file": "krnl_vadd_desc.cpp",
+    "fileloc": 47,
+    "instructions": 53,
+    "loads": {
+      "T": 2
+    },
+    "name": "krnl_vadd_desc",
+    "stores": {
+      "T": 1
+    },
+    "total_instructions": 53
+  }
+}

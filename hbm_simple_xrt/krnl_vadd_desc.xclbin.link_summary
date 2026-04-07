@@ -1,0 +1,208 @@
+<ENTRY>
+{
+ "thisFile": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xclbin.link_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Tue Feb 17 16:21:11 2026",
+ "timestampMillis": "1771363271838",
+ "buildStep": {
+  "cmdId": "effd1945-1dab-4e1a-8986-de87c7af4053",
+  "name": "v++",
+  "logFile": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/link.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2023.2/bin/unwrapped/lnx64.o/v++  --vivado.prop \"run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\" -l -t hw_emu --platform xilinx_u280_gen3x16_xdma_1_202211_1 --save-temps --config krnl_vadd_desc.cfg -o krnl_vadd_desc.xclbin krnl_vadd_desc.xo ",
+  "args": [
+   "-l",
+   "-t",
+   "hw_emu",
+   "--platform",
+   "xilinx_u280_gen3x16_xdma_1_202211_1",
+   "--save-temps",
+   "--config",
+   "krnl_vadd_desc.cfg",
+   "-o",
+   "krnl_vadd_desc.xclbin",
+   "krnl_vadd_desc.xo"
+  ],
+  "iniFiles": [
+   {
+    "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.cfg",
+    "content": "# Kernel connectivity configuration for descriptor-based DMA\n# Maps kernel memory interfaces to specific HBM banks\n\n[connectivity]\n# Descriptor buffer in HBM[0]\nsp=krnl_vadd_desc_1.desc_mem:HBM[0]\n\n# Data buffers in HBM[1:3] (maintain Phase 1 multi-bank access)\nsp=krnl_vadd_desc_1.data_mem0:HBM[1]\nsp=krnl_vadd_desc_1.data_mem1:HBM[2]\nsp=krnl_vadd_desc_1.data_mem2:HBM[3]\n"
+   }
+  ],
+  "cwd": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:21:11 2026",
+ "timestampMillis": "1771363271839",
+ "status": {
+  "cmdId": "effd1945-1dab-4e1a-8986-de87c7af4053",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "Tue Feb 17 16:21:17 2026",
+ "timestampMillis": "1771363277814",
+ "buildSummary": {
+  "hardwarePlatform": "xilinx_u280_gen3x16_xdma_1_202211_1.xpfm",
+  "hardwareDsa": "",
+  "platformDirectory": "/opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1",
+  "runtime": "OpenCL",
+  "systemConfig": "Linux",
+  "flow": "BF_LINK",
+  "target": "TT_HW_EMU",
+  "binaryContainer": {
+   "base": {
+    "type": "BT_UKNOWN",
+    "name": "krnl_vadd_desc",
+    "file": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xclbin",
+    "reports": [],
+    "uuid": ""
+   },
+   "kernels": []
+  },
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "krnl_vadd_desc",
+     "file": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [
+     "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int/xo/krnl_vadd_desc/krnl_vadd_desc/cpu_sources/krnl_vadd_desc.cpp"
+    ],
+    "psSources": [],
+    "cuNames": [
+     "krnl_vadd_desc_1"
+    ],
+    "type": "HLS",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "Vitis V++ Compiler Release 2023.2. SW Build 4026344 on 2023-10-11-15:42:10"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Tue Feb 17 16:21:18 2026",
+ "timestampMillis": "1771363278121",
+ "buildStep": {
+  "cmdId": "66fcb070-638a-4e06-bab3-38c6903937ff",
+  "name": "system_link",
+  "logFile": "",
+  "commandLine": "system_link --xo /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xo -keep --config /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int/syslinkConfig.ini --xpfm /opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm --target emu --output_dir /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int --temp_dir /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/sys_link",
+  "args": [
+   "--xo",
+   "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xo",
+   "-keep",
+   "--config",
+   "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int/syslinkConfig.ini",
+   "--xpfm",
+   "/opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm",
+   "--target",
+   "emu",
+   "--output_dir",
+   "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int",
+   "--temp_dir",
+   "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/sys_link"
+  ],
+  "iniFiles": [
+   {
+    "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/link/int/syslinkConfig.ini",
+    "content": "sp=krnl_vadd_desc_1.desc_mem:HBM[0]\nsp=krnl_vadd_desc_1.data_mem0:HBM[1]\nsp=krnl_vadd_desc_1.data_mem1:HBM[2]\nsp=krnl_vadd_desc_1.data_mem2:HBM[3]\n\n"
+   }
+  ],
+  "cwd": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:21:18 2026",
+ "timestampMillis": "1771363278121",
+ "status": {
+  "cmdId": "66fcb070-638a-4e06-bab3-38c6903937ff",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+pe": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:21:14 2026",
+ "timestampMillis": "1771363274950",
+ "status": {
+  "cmdId": "a3237a5c-fdec-4030-9c05-c9aeae570746",
+  "state": "CS_FAILED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:21:14 2026",
+ "timestampMillis": "1771363274970",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/logs/optraceViewer.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "OPERATION_TRACE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:21:14 2026",
+ "timestampMillis": "1771363274973",
+ "status": {
+  "cmdId": "b1d9bc68-8320-4deb-999d-e4e0f38e69fb",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:21:14 2026",
+ "timestampMillis": "1771363274990",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/reports/link/v++_link_krnl_vadd_desc_guidance.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:21:14 2026",
+ "timestampMillis": "1771363274990",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/v++_link_krnl_vadd_desc_guidance.pb3",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

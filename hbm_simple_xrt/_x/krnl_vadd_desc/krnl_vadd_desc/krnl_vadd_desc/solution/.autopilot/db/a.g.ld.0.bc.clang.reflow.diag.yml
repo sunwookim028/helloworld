@@ -1,0 +1,330 @@
+--- !Failure
+Pass:            generate-ir-wrapper
+Name:            MAXIDepthUnspecified
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'A depth specification is required for MAXI interface port '''
+  - Name:            desc_mem
+  - String:          ''' for cosimulation.'
+...
+--- !Failure
+Pass:            generate-ir-wrapper
+Name:            MAXIDepthUnspecified
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'A depth specification is required for MAXI interface port '''
+  - Name:            data_mem0
+  - String:          ''' for cosimulation.'
+...
+--- !Failure
+Pass:            generate-ir-wrapper
+Name:            MAXIDepthUnspecified
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'A depth specification is required for MAXI interface port '''
+  - Name:            data_mem1
+  - String:          ''' for cosimulation.'
+...
+--- !Failure
+Pass:            generate-ir-wrapper
+Name:            MAXIDepthUnspecified
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'A depth specification is required for MAXI interface port '''
+  - Name:            data_mem2
+  - String:          ''' for cosimulation.'
+...
+--- !Passed
+Pass:            reflow-inliner
+Name:            Inline
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Inlining function '''
+  - Callee:          'byte_to_word512(unsigned long)'
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 37, Column: 0 }
+  - String:          ''' into '''
+  - Caller:          krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ''''
+...
+--- !Passed
+Pass:            reflow-inliner
+Name:            Inline
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 54, Column: 0 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Inlining function '''
+  - Callee:          'bytes_to_words512(unsigned int)'
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 42, Column: 0 }
+  - String:          ''' into '''
+  - Caller:          krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ''''
+...
+--- !Passed
+Pass:            reflow-burst-inference
+Name:            BurstInferred
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Sequential '
+  - Direction:       read
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length'
+  - String:          ' has been inferred'
+  - String:          ' _XLX_SEP_ '
+  - AccessID:        scevgepseq
+  - ArrayName:       data_mem0
+  - String:          ' '
+  - BundleName:      gmem0
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+  - String:          ' _XLX_SEP_ '
+  - OrigAccess:      load
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 122, Column: 41 }
+  - OrigDirection:   read
+  - OrigID:          for.inc.load.5
+...
+--- !Passed
+Pass:            reflow-burst-inference
+Name:            BurstInferred
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Sequential '
+  - Direction:       write
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length'
+  - String:          ' has been inferred'
+  - String:          ' _XLX_SEP_ '
+  - AccessID:        scevgep7seq
+  - ArrayName:       data_mem2
+  - String:          ' '
+  - BundleName:      gmem2
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+  - String:          ' _XLX_SEP_ '
+  - OrigAccess:      store
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 122, Column: 41 }
+  - OrigDirection:   write
+  - OrigID:          for.inc.store.9
+...
+--- !Missed
+Pass:            reflow-burst-inference
+Name:            CouldNotAnalyzeBoundsPattern
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 84, Column: 5 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          Could not analyze the loop bounds
+  - String:          ' _XLX_SEP_ '
+  - LoopName:        descriptor_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:84:5'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+...
+--- !Missed
+Pass:            reflow-burst-widen
+Name:            GreaterOrEqualThreshold
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Could not widen since type '
+  - Type:            i512
+  - String:          ' size is greater than or equal to the max_widen_bitwidth threshold of '
+  - Threshold:       '512'
+  - String:          ' _XLX_SEP_ '
+  - OrigAccess:      call
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 114, Column: 9 }
+  - OrigDirection:   read
+  - OrigID:          scevgepseq
+  - ArrayName:       data_mem0
+  - String:          ' '
+  - BundleName:      gmem0
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+...
+--- !Missed
+Pass:            reflow-burst-widen
+Name:            GreaterOrEqualThreshold
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Could not widen since type '
+  - Type:            i512
+  - String:          ' size is greater than or equal to the max_widen_bitwidth threshold of '
+  - Threshold:       '512'
+  - String:          ' _XLX_SEP_ '
+  - OrigAccess:      call
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 114, Column: 9 }
+  - OrigDirection:   write
+  - OrigID:          scevgep7seq
+  - ArrayName:       data_mem2
+  - String:          ' '
+  - BundleName:      gmem2
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+...
+--- !Passed
+Pass:            reflow-burst-summary
+Name:            BurstInferredVerboseSummary
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Multiple burst '
+  - Direction:       reads
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length and bit width '
+  - Width:           '512'
+  - String:          ' has been inferred.'
+  - String:          ' These burst requests might be further partitioned into multiple requests during RTL generation, based on max_read_burst_length or max_write_burst_length settings.'
+  - String:          ' _XLX_SEP_ '
+  - AccessID:        seq
+  - ArrayName:       ''
+  - String:          ' '
+  - BundleName:      gmem0
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+...
+--- !Passed
+Pass:            reflow-burst-summary
+Name:            BurstInferredSummary
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Multiple burst '
+  - Direction:       reads
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length and bit width '
+  - Width:           '512'
+  - String:          ' in loop '''
+  - LoopName:        data_transfer_loop
+  - String:          '''('
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ')'
+  - String:          ' has been inferred on bundle '''
+  - BundleName:      gmem0
+  - String:          '''.'
+  - String:          ' These burst requests might be further partitioned into multiple requests during RTL generation, based on max_read_burst_length or max_write_burst_length settings.'
+...
+--- !Passed
+Pass:            reflow-burst-summary
+Name:            BurstInferredVerboseSummary
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Multiple burst '
+  - Direction:       writes
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length and bit width '
+  - Width:           '512'
+  - String:          ' has been inferred.'
+  - String:          ' These burst requests might be further partitioned into multiple requests during RTL generation, based on max_read_burst_length or max_write_burst_length settings.'
+  - String:          ' _XLX_SEP_ '
+  - AccessID:        seq1
+  - ArrayName:       ''
+  - String:          ' '
+  - BundleName:      gmem2
+  - String:          ' '
+  - LoopName:        data_transfer_loop
+  - String:          ' '
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ' '
+  - Function:        krnl_vadd_desc
+    DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                       Line: 54, Column: 0 }
+  - String:          ' '
+...
+--- !Passed
+Pass:            reflow-burst-summary
+Name:            BurstInferredSummary
+DebugLoc:        { File: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp, 
+                   Line: 114, Column: 9 }
+Function:        krnl_vadd_desc
+Args:            
+  - String:          'Multiple burst '
+  - Direction:       writes
+  - String:          ' of '
+  - Length:          variable
+  - String:          ' length and bit width '
+  - Width:           '512'
+  - String:          ' in loop '''
+  - LoopName:        data_transfer_loop
+  - String:          '''('
+  - LoopLoc:         '/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9'
+  - String:          ')'
+  - String:          ' has been inferred on bundle '''
+  - BundleName:      gmem2
+  - String:          '''.'
+  - String:          ' These burst requests might be further partitioned into multiple requests during RTL generation, based on max_read_burst_length or max_write_burst_length settings.'
+...

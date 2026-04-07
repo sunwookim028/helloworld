@@ -1,0 +1,236 @@
+<ENTRY>
+{
+ "thisFile": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xo.compile_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Tue Feb 17 16:20:05 2026",
+ "timestampMillis": "1771363205506",
+ "buildStep": {
+  "cmdId": "a1f09074-f649-4043-b831-9c760d0f2372",
+  "name": "v++",
+  "logFile": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2023.2/bin/unwrapped/lnx64.o/v++  --vivado.prop \"run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\" -c -t hw_emu --platform xilinx_u280_gen3x16_xdma_1_202211_1 --save-temps -k krnl_vadd_desc -Isrc -o krnl_vadd_desc.xo src/krnl_vadd_desc.cpp ",
+  "args": [
+   "-c",
+   "-t",
+   "hw_emu",
+   "--platform",
+   "xilinx_u280_gen3x16_xdma_1_202211_1",
+   "--save-temps",
+   "-k",
+   "krnl_vadd_desc",
+   "-Isrc",
+   "-o",
+   "krnl_vadd_desc.xo",
+   "src/krnl_vadd_desc.cpp"
+  ],
+  "iniFiles": [],
+  "cwd": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:20:05 2026",
+ "timestampMillis": "1771363205507",
+ "status": {
+  "cmdId": "a1f09074-f649-4043-b831-9c760d0f2372",
+  "state": "CS_RUNNING"
+ }
+}
+<<ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "Tue Feb 17 16:20:11 2026",
+ "timestampMillis": "1771363211552",
+ "buildSummary": {
+  "hardwarePlatform": "xilinx_u280_gen3x16_xdma_1_202211_1.xpfm",
+  "hardwareDsa": "",
+  "platformDirectory": "/opt/xilinx/platforms/xilinx_u280_gen3x16_xdma_1_202211_1",
+  "runtime": "OpenCL",
+  "systemConfig": "Linux",
+  "flow": "BF_COMPILE",
+  "target": "TT_HW_EMU",
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "krnl_vadd_desc",
+     "file": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/krnl_vadd_desc.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [
+     "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp"
+    ],
+    "psSources": [],
+    "cuNames": [],
+    "type": "HLS",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "Vitis V++ Compiler Release 2023.2. SW Build 4026344 on 2023-10-11-15:42:10"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Tue Feb 17 16:20:11 2026",
+ "timestampMillis": "1771363211557",
+ "buildStep": {
+  "cmdId": "464706f4-b971-44f8-a619-3edd4602af3f",
+  "name": "vitis_hls",
+  "logFile": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/vitis_hls.log",
+  "commandLine": "vitis_hls -f /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc.tcl -messageDb vitis_hls.pb",
+  "args": [
+   "vitis_hls",
+   "-f",
+   "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc.tcl",
+   "-messageDb",
+   "vitis_hls.pb"
+  ],
+  "iniFiles": [],
+  "cwd": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:20:11 2026",
+ "timestampMillis": "1771363211558",
+ "status": {
+  "cmdId": "464706f4-b971-44f8-a619-3edd4602af3f",
+  "state": "CS_RUNNING"
+ }<ENTRY>
+{
+ "<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256005",
+ "status": {
+  "cmdId": "464706f4-b971-44f8-a619-3edd4602af3f",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256160",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc/solution/.autopilot/db/krnl_vadd_desc.design.xml",
+  "name": "krnl_vadd_desc",
+  "fileType": "XML",
+  "reportType": "KERNEL_HLS_REPORT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256161",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc/solution/.autopilot/db/.message_syn.xml",
+  "name": "krnl_vadd_desc",
+  "fileType": "XML",
+  "reportType": "KERNEL_HLS_DRC_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256164",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/reports/krnl_vadd_desc/hls_reports/krnl_vadd_desc_csynth.rpt",
+  "name": "krnl_vadd_desc",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_HLS_CSYNTH",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256165",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc/solution/syn/report/krnl_vadd_desc_csynth.xml",
+  "name": "krnl_vadd_desc",
+  "fileType": "XML",
+  "reportType": "KERNEL_HLS_CSYNTH",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256173",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/reports/krnl_vadd_desc/system_estimate_krnl_vadd_desc.xtxt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SYSTEM_ESTIMATE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256412",
+ "status": {
+  "cmdId": "a1f09074-f649-4043-b831-9c760d0f2372",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256431",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/reports/krnl_vadd_desc/v++_compile_krnl_vadd_desc_guidance.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Tue Feb 17 16:20:56 2026",
+ "timestampMillis": "1771363256432",
+ "report": {
+  "path": "/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/v++_compile_krnl_vadd_desc_guidance.pb3",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

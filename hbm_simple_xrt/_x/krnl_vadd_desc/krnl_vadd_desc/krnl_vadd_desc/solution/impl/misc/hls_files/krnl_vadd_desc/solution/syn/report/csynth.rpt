@@ -1,0 +1,199 @@
+
+
+================================================================
+== Synthesis Summary Report of 'krnl_vadd_desc'
+================================================================
++ General Information: 
+    * Date:           Tue Feb 17 16:20:26 2026
+    * Version:        2023.2 (Build 4023990 on Oct 11 2023)
+    * Project:        krnl_vadd_desc
+    * Solution:       solution (Vitis Kernel Flow Target)
+    * Product family: virtexuplusHBM
+    * Target device:  xcu280-fsvh2892-2L-e
+    
+
++ Performance & Resource Estimates: 
+    
+    PS: '+' for module; 'o' for loop; '*' for dataflow
+    +------------------------------------------------+--------+-------+----------+-----------+----------+----------+-------+----------+---------+----+-------------+-------------+-----+
+    |                     Modules                    |  Issue |       | Latency  |  Latency  | Iteration|          |  Trip |          |         |    |             |             |     |
+    |                     & Loops                    |  Type  | Slack | (cycles) |    (ns)   |  Latency | Interval | Count | Pipelined|  BRAM   | DSP|      FF     |     LUT     | URAM|
+    +------------------------------------------------+--------+-------+----------+-----------+----------+----------+-------+----------+---------+----+-------------+-------------+-----+
+    |+ krnl_vadd_desc                                |  Timing|  -0.00|  67332312|  2.244e+08|         -|  67332313|      -|        no|  90 (2%)|   -|  12477 (~0%)|  10629 (~0%)|    -|
+    | o descriptor_loop                              |       -|   2.43|  67332310|  2.244e+08|     65754|         -|   1024|        no|        -|   -|            -|            -|    -|
+    |  + krnl_vadd_desc_Pipeline_data_transfer_loop  |  Timing|  -0.00|     65539|  2.184e+05|         -|     65539|      -|        no|        -|   -|    543 (~0%)|    126 (~0%)|    -|
+    |   o data_transfer_loop                         |       -|   2.43|     65537|  2.184e+05|         3|         1|  65536|       yes|        -|   -|            -|            -|    -|
+    +------------------------------------------------+--------+-------+----------+-----------+----------+----------+-------+----------+---------+----+-------------+-------------+-----+
+
+
+================================================================
+== HW Interfaces
+================================================================
+* M_AXI
++-----------------+------------+---------------+---------+--------+----------+-----------+--------------+--------------+-------------+-------------+-------------------+
+| Interface       | Data Width | Address Width | Latency | Offset | Register | Max Widen | Max Read     | Max Write    | Num Read    | Num Write   | Resource Estimate |
+|                 | (SW->HW)   |               |         |        |          | Bitwidth  | Burst Length | Burst Length | Outstanding | Outstanding |                   |
++-----------------+------------+---------------+---------+--------+----------+-----------+--------------+--------------+-------------+-------------+-------------------+
+| m_axi_gmem0     | 512 -> 512 | 64            | 64      | slave  | 0        | 512       | 16           | 16           | 16          | 16          | BRAM=30           |
+| m_axi_gmem1     | 512 -> 512 | 64            | 64      | slave  | 0        | 512       | 16           | 16           | 16          | 16          |                   |
+| m_axi_gmem2     | 512 -> 512 | 64            | 64      | slave  | 0        | 512       | 16           | 16           | 16          | 16          | BRAM=30           |
+| m_axi_gmem_desc | 512 -> 512 | 64            | 64      | slave  | 0        | 512       | 16           | 16           | 16          | 16          | BRAM=30           |
++-----------------+------------+---------------+---------+--------+----------+-----------+--------------+--------------+-------------+-------------+-------------------+
+
+* S_AXILITE Interfaces
++---------------+------------+---------------+--------+----------+
+| Interface     | Data Width | Address Width | Offset | Register |
++---------------+------------+---------------+--------+----------+
+| s_axi_control | 32         | 7             | 16     | 0        |
++---------------+------------+---------------+--------+----------+
+
+* S_AXILITE Registers
++---------------+-------------------+--------+-------+--------+----------------------------------+------------------------------------------------------------------------------------+
+| Interface     | Register          | Offset | Width | Access | Description                      | Bit Fields                                                                         |
++---------------+-------------------+--------+-------+--------+----------------------------------+------------------------------------------------------------------------------------+
+| s_axi_control | CTRL              | 0x00   | 32    | RW     | Control signals                  | 0=AP_START 1=AP_DONE 2=AP_IDLE 3=AP_READY 4=AP_CONTINUE 7=AUTO_RESTART 9=INTERRUPT |
+| s_axi_control | GIER              | 0x04   | 32    | RW     | Global Interrupt Enable Register | 0=Enable                                                                           |
+| s_axi_control | IP_IER            | 0x08   | 32    | RW     | IP Interrupt Enable Register     | 0=CHAN0_INT_EN 1=CHAN1_INT_EN                                                      |
+| s_axi_control | IP_ISR            | 0x0c   | 32    | RW     | IP Interrupt Status Register     | 0=CHAN0_INT_ST 1=CHAN1_INT_ST                                                      |
+| s_axi_control | desc_mem_1        | 0x10   | 32    | W      | Data signal of desc_mem          |                                                                                    |
+| s_axi_control | desc_mem_2        | 0x14   | 32    | W      | Data signal of desc_mem          |                                                                                    |
+| s_axi_control | data_mem0_1       | 0x1c   | 32    | W      | Data signal of data_mem0         |                                                                                    |
+| s_axi_control | data_mem0_2       | 0x20   | 32    | W      | Data signal of data_mem0         |                                                                                    |
+| s_axi_control | data_mem1_1       | 0x28   | 32    | W      | Data signal of data_mem1         |                                                                                    |
+| s_axi_control | data_mem1_2       | 0x2c   | 32    | W      | Data signal of data_mem1         |                                                                                    |
+| s_axi_control | data_mem2_1       | 0x34   | 32    | W      | Data signal of data_mem2         |                                                                                    |
+| s_axi_control | data_mem2_2       | 0x38   | 32    | W      | Data signal of data_mem2         |                                                                                    |
+| s_axi_control | first_desc_addr_1 | 0x40   | 32    | W      | Data signal of first_desc_addr   |                                                                                    |
+| s_axi_control | first_desc_addr_2 | 0x44   | 32    | W      | Data signal of first_desc_addr   |                                                                                    |
+| s_axi_control | max_descriptors   | 0x4c   | 32    | W      | Data signal of max_descriptors   |                                                                                    |
++---------------+-------------------+--------+-------+--------+----------------------------------+------------------------------------------------------------------------------------+
+
+* TOP LEVEL CONTROL
++-----------+---------------+-----------+
+| Interface | Type          | Ports     |
++-----------+---------------+-----------+
+| ap_clk    | clock         | ap_clk    |
+| ap_rst_n  | reset         | ap_rst_n  |
+| interrupt | interrupt     | interrupt |
+| ap_ctrl   | ap_ctrl_chain |           |
++-----------+---------------+-----------+
+
+
+================================================================
+== SW I/O Information
+================================================================
+* Top Function Arguments
++-----------------+-----------+----------------------+
+| Argument        | Direction | Datatype             |
++-----------------+-----------+----------------------+
+| desc_mem        | in        | ap_uint<512> const * |
+| data_mem0       | in        | ap_uint<512> const * |
+| data_mem1       | unused    | ap_uint<512> const * |
+| data_mem2       | out       | ap_uint<512>*        |
+| first_desc_addr | in        | long unsigned int    |
+| max_descriptors | in        | unsigned int         |
++-----------------+-----------+----------------------+
+
+* SW-to-HW Mapping
++-----------------+-----------------+-----------+----------+---------------------------------------------+
+| Argument        | HW Interface    | HW Type   | HW Usage | HW Info                                     |
++-----------------+-----------------+-----------+----------+---------------------------------------------+
+| desc_mem        | m_axi_gmem_desc | interface |          |                                             |
+| desc_mem        | s_axi_control   | register  | offset   | name=desc_mem_1 offset=0x10 range=32        |
+| desc_mem        | s_axi_control   | register  | offset   | name=desc_mem_2 offset=0x14 range=32        |
+| data_mem0       | m_axi_gmem0     | interface |          |                                             |
+| data_mem0       | s_axi_control   | register  | offset   | name=data_mem0_1 offset=0x1c range=32       |
+| data_mem0       | s_axi_control   | register  | offset   | name=data_mem0_2 offset=0x20 range=32       |
+| data_mem1       | m_axi_gmem1     | interface |          |                                             |
+| data_mem1       | s_axi_control   | register  | offset   | name=data_mem1_1 offset=0x28 range=32       |
+| data_mem1       | s_axi_control   | register  | offset   | name=data_mem1_2 offset=0x2c range=32       |
+| data_mem2       | m_axi_gmem2     | interface |          |                                             |
+| data_mem2       | s_axi_control   | register  | offset   | name=data_mem2_1 offset=0x34 range=32       |
+| data_mem2       | s_axi_control   | register  | offset   | name=data_mem2_2 offset=0x38 range=32       |
+| first_desc_addr | s_axi_control   | register  |          | name=first_desc_addr_1 offset=0x40 range=32 |
+| first_desc_addr | s_axi_control   | register  |          | name=first_desc_addr_2 offset=0x44 range=32 |
+| max_descriptors | s_axi_control   | register  |          | name=max_descriptors offset=0x4c range=32   |
++-----------------+-----------------+-----------+----------+---------------------------------------------+
+
+
+================================================================
+== M_AXI Burst Information
+================================================================
+ Note: All burst requests might be further partitioned into multiple requests during RTL generation based on max_read_burst_length or max_write_burst_length settings.
+
+* Inferred Burst Summary
++--------------+-----------+----------+-------+--------------------+-----------------------------------------------------------------------------------------------+
+| HW Interface | Direction | Length   | Width | Loop               | Loop Location                                                                                 |
++--------------+-----------+----------+-------+--------------------+-----------------------------------------------------------------------------------------------+
+| m_axi_gmem0  | read      | variable | 512   | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 |
+| m_axi_gmem2  | write     | variable | 512   | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 |
++--------------+-----------+----------+-------+--------------------+-----------------------------------------------------------------------------------------------+
+
+* All M_AXI Variable Accesses
++--------------+-----------+------------------------------------------------------------------------------------------------+-----------+--------------+----------+--------------------+-----------------------------------------------------------------------------------------------+------------+----------------------------------------------------------------------------------------------------------+
+| HW Interface | Variable  | Access Location                                                                                | Direction | Burst Status | Length   | Loop               | Loop Location                                                                                 | Resolution | Problem                                                                                                  |
++--------------+-----------+------------------------------------------------------------------------------------------------+-----------+--------------+----------+--------------------+-----------------------------------------------------------------------------------------------+------------+----------------------------------------------------------------------------------------------------------+
+| m_axi_gmem0  | data_mem0 | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122:41 | read      | Widen Fail   |          | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 | 214-353    | Could not widen since type i512 size is greater than or equal to the max_widen_bitwidth threshold of 512 |
+| m_axi_gmem0  | data_mem0 | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122:41 | read      | Inferred     | variable | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 |            |                                                                                                          |
+| m_axi_gmem2  | data_mem2 | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122:41 | write     | Widen Fail   |          | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 | 214-353    | Could not widen since type i512 size is greater than or equal to the max_widen_bitwidth threshold of 512 |
+| m_axi_gmem2  | data_mem2 | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122:41 | write     | Inferred     | variable | data_transfer_loop | /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114:9 |            |                                                                                                          |
++--------------+-----------+------------------------------------------------------------------------------------------------+-----------+--------------+----------+--------------------+-----------------------------------------------------------------------------------------------+------------+----------------------------------------------------------------------------------------------------------+
+
+    * Resolution URL: docs.xilinx.com/access/sources/dita/topic?Doc_Version=2023.2%20English&url=ug1448-hls-guidance&resourceid=XXX-YYY.html (replace XXX-YYY with column value)
+
+================================================================
+== Bind Op Report
+================================================================
++-----------------------------------------------+-----+--------+--------------+-----+--------+---------+
+| Name                                          | DSP | Pragma | Variable     | Op  | Impl   | Latency |
++-----------------------------------------------+-----+--------+--------------+-----+--------+---------+
+| + krnl_vadd_desc                              | 0   |        |              |     |        |         |
+|   desc_count_2_fu_238_p2                      |     |        | desc_count_2 | add | fabric | 0       |
+|   add_ln94_fu_265_p2                          |     |        | add_ln94     | add | fabric | 0       |
+|   add_ln43_fu_352_p2                          |     |        | add_ln43     | add | fabric | 0       |
+|   add_ln114_fu_367_p2                         |     |        | add_ln114    | add | fabric | 0       |
+|   add_ln114_1_fu_382_p2                       |     |        | add_ln114_1  | add | fabric | 0       |
+|  + krnl_vadd_desc_Pipeline_data_transfer_loop | 0   |        |              |     |        |         |
+|    add_ln114_fu_119_p2                        |     |        | add_ln114    | add | fabric | 0       |
++-----------------------------------------------+-----+--------+--------------+-----+--------+---------+
+
+
+================================================================
+== Storage Report
+================================================================
++---------------------+-----------+-----------+------+------+--------+----------+------+---------+------------------+
+| Name                | Usage     | Type      | BRAM | URAM | Pragma | Variable | Impl | Latency | Bitwidth, Depth, |
+|                     |           |           |      |      |        |          |      |         | Banks            |
++---------------------+-----------+-----------+------+------+--------+----------+------+---------+------------------+
+| + krnl_vadd_desc    |           |           | 90   | 0    |        |          |      |         |                  |
+|   control_s_axi_U   | interface | s_axilite |      |      |        |          |      |         |                  |
+|   gmem0_m_axi_U     | interface | m_axi     | 30   |      |        |          |      |         |                  |
+|   gmem2_m_axi_U     | interface | m_axi     | 30   |      |        |          |      |         |                  |
+|   gmem_desc_m_axi_U | interface | m_axi     | 30   |      |        |          |      |         |                  |
++---------------------+-----------+-----------+------+------+--------+----------+------+---------+------------------+
+
+
+================================================================
+== Pragma Report
+================================================================
+* Valid Pragma Syntax
++----------------+---------------------------------------------------+-----------------------------------------------------------------------+
+| Type           | Options                                           | Location                                                              |
++----------------+---------------------------------------------------+-----------------------------------------------------------------------+
+| interface      | m_axi port=desc_mem offset=slave bundle=gmem_desc | ../../../src/krnl_vadd_desc.cpp:55 in krnl_vadd_desc, desc_mem        |
+| interface      | m_axi port=data_mem0 offset=slave bundle=gmem0    | ../../../src/krnl_vadd_desc.cpp:56 in krnl_vadd_desc, data_mem0       |
+| interface      | m_axi port=data_mem1 offset=slave bundle=gmem1    | ../../../src/krnl_vadd_desc.cpp:57 in krnl_vadd_desc, data_mem1       |
+| interface      | m_axi port=data_mem2 offset=slave bundle=gmem2    | ../../../src/krnl_vadd_desc.cpp:58 in krnl_vadd_desc, data_mem2       |
+| interface      | s_axilite port=desc_mem bundle=control            | ../../../src/krnl_vadd_desc.cpp:59 in krnl_vadd_desc, desc_mem        |
+| interface      | s_axilite port=data_mem0 bundle=control           | ../../../src/krnl_vadd_desc.cpp:60 in krnl_vadd_desc, data_mem0       |
+| interface      | s_axilite port=data_mem1 bundle=control           | ../../../src/krnl_vadd_desc.cpp:61 in krnl_vadd_desc, data_mem1       |
+| interface      | s_axilite port=data_mem2 bundle=control           | ../../../src/krnl_vadd_desc.cpp:62 in krnl_vadd_desc, data_mem2       |
+| interface      | s_axilite port=first_desc_addr bundle=control     | ../../../src/krnl_vadd_desc.cpp:63 in krnl_vadd_desc, first_desc_addr |
+| interface      | s_axilite port=max_descriptors bundle=control     | ../../../src/krnl_vadd_desc.cpp:64 in krnl_vadd_desc, max_descriptors |
+| interface      | s_axilite port=return bundle=control              | ../../../src/krnl_vadd_desc.cpp:65 in krnl_vadd_desc, return          |
+| loop_tripcount | min=1 max=1024 avg=64                             | ../../../src/krnl_vadd_desc.cpp:85 in krnl_vadd_desc                  |
+| pipeline       | II=1                                              | ../../../src/krnl_vadd_desc.cpp:115 in krnl_vadd_desc                 |
+| loop_tripcount | min=16 max=65536 avg=1024                         | ../../../src/krnl_vadd_desc.cpp:116 in krnl_vadd_desc                 |
++----------------+---------------------------------------------------+-----------------------------------------------------------------------+
+
+

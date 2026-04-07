@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xd:repository xmlns:xd="http://www.xilinx.com/xd">
+    <xd:fcnMap xd:fcnName="krnl_vadd_desc" xd:type="hls_opencl" xd:clockId="0" xd:flow="explicit" xd:componentRef="krnl_vadd_desc">
+        <xd:interrupt xd:busInterfaceRef="interrupt"/>
+        <xd:ctrlReg xd:busInterface="s_axi_control" xd:portInterfaceType="axilite" xd:name="control" xd:type="ap_ctrl_chain" xd:offset="0x0"/>
+        <xd:arg xd:name="desc_mem" xd:swRootName="desc_mem" xd:dataWidth="64" xd:offset="0x10" xd:portInterfaceType="axilite" xd:direction="in" xd:id="0" xd:busInterfaceRef="s_axi_control" xd:aximmMasterRef="m_axi_gmem_desc" xd:aximmMasterDirection="inout" xd:aximmMasterDataWidth="512"/>
+        <xd:arg xd:name="data_mem0" xd:swRootName="data_mem0" xd:dataWidth="64" xd:offset="0x1C" xd:portInterfaceType="axilite" xd:direction="in" xd:id="1" xd:busInterfaceRef="s_axi_control" xd:aximmMasterRef="m_axi_gmem0" xd:aximmMasterDirection="inout" xd:aximmMasterDataWidth="512"/>
+        <xd:arg xd:name="data_mem1" xd:swRootName="data_mem1" xd:dataWidth="64" xd:offset="0x28" xd:portInterfaceType="axilite" xd:direction="in" xd:id="2" xd:busInterfaceRef="s_axi_control" xd:aximmMasterRef="m_axi_gmem1" xd:aximmMasterDirection="inout" xd:aximmMasterDataWidth="512"/>
+        <xd:arg xd:name="data_mem2" xd:swRootName="data_mem2" xd:dataWidth="64" xd:offset="0x34" xd:portInterfaceType="axilite" xd:direction="in" xd:id="3" xd:busInterfaceRef="s_axi_control" xd:aximmMasterRef="m_axi_gmem2" xd:aximmMasterDirection="inout" xd:aximmMasterDataWidth="512"/>
+        <xd:arg xd:name="first_desc_addr" xd:swRootName="first_desc_addr" xd:dataWidth="64" xd:offset="0x40" xd:portInterfaceType="axilite" xd:direction="in" xd:id="4" xd:busInterfaceRef="s_axi_control"/>
+        <xd:arg xd:name="max_descriptors" xd:swRootName="max_descriptors" xd:dataWidth="32" xd:offset="0x4C" xd:portInterfaceType="axilite" xd:direction="in" xd:id="5" xd:busInterfaceRef="s_axi_control"/>
+    </xd:fcnMap>
+</xd:repository>

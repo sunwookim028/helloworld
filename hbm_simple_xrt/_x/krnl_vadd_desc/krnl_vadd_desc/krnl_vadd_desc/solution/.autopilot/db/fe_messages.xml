@@ -1,0 +1,66 @@
+<xilinx:hls_fe_msgs>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/krnl_vadd_desc.tcl:23:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaContext="directive" ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="name=krnl_vadd_desc" ARG_PragmaType="top" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:55:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="m_axi port=desc_mem offset=slave bundle=gmem_desc" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:56:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="m_axi port=data_mem0 offset=slave bundle=gmem0" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:57:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="m_axi port=data_mem1 offset=slave bundle=gmem1" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:58:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="m_axi port=data_mem2 offset=slave bundle=gmem2" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:59:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=desc_mem bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:60:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=data_mem0 bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:61:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=data_mem1 bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:62:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=data_mem2 bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:63:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=first_desc_addr bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:64:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=max_descriptors bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:65:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="s_axilite port=return bundle=control" ARG_PragmaType="interface" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:85:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="min=1 max=1024 avg=64" ARG_PragmaType="loop_tripcount" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:115:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="II=1" ARG_PragmaType="pipeline" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_VERBOSE_DUMP" msg_id="207-5471" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:116:9" msg_body="HLS pragma dump">
+        <args ARG_PragmaFunction="krnl_vadd_desc" ARG_PragmaIsValid="1" ARG_PragmaOptions="min=16 max=65536 avg=1024" ARG_PragmaType="loop_tripcount" ClangWarningOption="dump-hls-pragmas"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INTERFACE" msg_id="214-386" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="A depth specification is required for MAXI interface port 'desc_mem' for cosimulation.">
+        <args Name="desc_mem"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INTERFACE" msg_id="214-386" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="A depth specification is required for MAXI interface port 'data_mem0' for cosimulation.">
+        <args Name="data_mem0"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INTERFACE" msg_id="214-386" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="A depth specification is required for MAXI interface port 'data_mem1' for cosimulation.">
+        <args Name="data_mem1"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INTERFACE" msg_id="214-386" msg_severity="WARNING" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="A depth specification is required for MAXI interface port 'data_mem2' for cosimulation.">
+        <args Name="data_mem2"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INLINE" msg_id="214-178" msg_severity="INFO" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="Inlining function 'byte_to_word512(unsigned long)' into 'krnl_vadd_desc'">
+        <args Callee="byte_to_word512(unsigned long)" Callee-DebugLoc="File /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp Line 37 Column 0" Caller="krnl_vadd_desc" Caller-DebugLoc="File /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp Line 54 Column 0"/>
+    </msg>
+    <msg msg_groups="PRAGMA_INLINE" msg_id="214-178" msg_severity="INFO" msg_loc="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:54:0" msg_body="Inlining function 'bytes_to_words512(unsigned int)' into 'krnl_vadd_desc'">
+        <args Callee="bytes_to_words512(unsigned int)" Callee-DebugLoc="File /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp Line 42 Column 0" Caller="krnl_vadd_desc" Caller-DebugLoc="File /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp Line 54 Column 0"/>
+    </msg>
+</xilinx:hls_fe_msgs>
+
