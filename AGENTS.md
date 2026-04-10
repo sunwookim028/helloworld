@@ -1,7 +1,8 @@
 # Agent Context: HBM Data Mover Project
 
 ## Quick Start
-See [README.md](README.md) for complete project documentation, build instructions, and results.
+See [README.md](README.md) for all build, run, and simulation commands.
+See [hbm_simple_xrt/documentation/](hbm_simple_xrt/documentation/) for per-file architecture docs.
 
 ## Project Status
 **Current Phase**: Phase 1 Complete — RTL Data Mover verified on hardware  
@@ -9,20 +10,10 @@ See [README.md](README.md) for complete project documentation, build instruction
 **Hardware**: Alveo U280 with HBM2  
 **Performance**: 27.8 GB/s (multi-bank), 14.6 GB/s (single-bank)
 
-## Environment Setup
-```bash
-source /opt/xilinx/Vitis/2023.2/settings64.sh
-source /opt/xilinx/xrt/setup.sh
-```
-
-**Key Variables:**
-- `XILINX_VITIS`: Vitis 2023.2 installation path
-- `XILINX_XRT`: XRT runtime path (`/opt/xilinx/xrt`)
-
 ## Project Structure
 ```
-hbm_simple_xrt/                  # Self-contained project (see README.md for details)
-├── src/                         # Source files
+hbm_simple_xrt/
+├── src/
 │   ├── krnl_vadd.sv             # RTL top-level kernel
 │   ├── krnl_vadd_ctrl.v         # AXI4-Lite slave (ap_ctrl_hs)
 │   ├── krnl_vadd_rd_mst.v       # AXI4 burst read master
@@ -30,37 +21,25 @@ hbm_simple_xrt/                  # Self-contained project (see README.md for det
 │   ├── fifo4.sv                 # FWFT FIFO (512-bit, depth=64)
 │   ├── host.cpp                 # Host app: bandwidth test
 │   └── host_tensor.cpp          # Host app: tensor scenario test
-├── pack_kernel.tcl              # Vivado Tcl: packages RTL → .xo
+├── package_kernel.tcl           # Vivado Tcl: packages RTL → .xo
+├── kernel.xml                   # RTL kernel descriptor for Vitis
 ├── krnl_vadd.cfg                # Linker config: HBM bank connectivity
-├── krnl_vadd.xclbin             # Hardware bitstream (49MB)
-├── Makefile                     # Build system (host + RTL kernel + bitstream)
-└── run.sh                       # Helper script with environment setup
+├── Makefile                     # Build system
+└── run.sh                       # Wrapper script with env setup
 ```
 
-## Build Flow
-The kernel is built in RTL (not HLS C++). The Makefile uses a two-step process:
-1. `vivado -mode batch -source pack_kernel.tcl` → packages RTL into `krnl_vadd.xo`
-2. `v++ -l` → links `.xo` into `krnl_vadd.xclbin` (uses `krnl_vadd.cfg` for HBM mapping)
-
-Host binaries are compiled with `g++` against XRT headers/libraries.
-
-## Key Findings
-1. **Bandwidth**: Achieved ~28 GB/s using 512-bit vectorization (`ap_uint<512>` equivalent in RTL)
-2. **Connectivity**: Limited to `HBM[0:3]` by `krnl_vadd.cfg` linker configuration
-3. **Software Overhead**: Tensor scenarios show ~73x slowdown, justifying hardware DMA descriptors
+## Key Design Notes
+- `m_axi_gmem1` (`in2`) is present for XRT interface compatibility but never initiates transactions.
+- Max AXI4 burst = 256 beats × 64 bytes = 16 KB; rd and wr masters run in parallel via FIFO.
+- `krnl_vadd.cpp` (HLS C++) is kept as reference but is not used in the build.
 
 ## Next Steps: DMA IP Evolution
 
 ### Phase 2: Descriptor-Based Control
-- **Goal**: Replace scalar arguments with descriptor-based interface
-- **Descriptor Structure**: `{ src_addr, dst_addr, length, control_flags, next_desc_addr }`
-- **Benefit**: Enable scatter/gather operations, queue multiple transfers without CPU intervention
+- Replace scalar arguments with descriptor-based interface
+- Enable scatter/gather operations, queue multiple transfers without CPU intervention
 
 ### Phase 3: Performance Features
-- **Stride/2D DMA**: Support strided access (e.g., sub-matrix extraction)
-- **Interrupts**: Add `s_axilite` interrupt for completion notification
-- **Multi-CU**: Scale to multiple compute units for higher throughput
-
-## References
-- [README.md](README.md) - Complete documentation and test results
-- [hbm_simple_xrt/](hbm_simple_xrt/) - Source code and build artifacts
+- Stride/2D DMA for sub-matrix extraction
+- Interrupts for completion notification
+- Multi-CU for higher throughput
