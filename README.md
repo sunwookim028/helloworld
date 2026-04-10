@@ -39,12 +39,25 @@ wsl -u leishen -e bash -c "source /mnt/c/Users/benso/coding/hbm_context/hellowor
 
 ---
 
-## Building (Linux server, from `hbm_simple_xrt/`)
+## Building the RTL Kernel (Linux server, from `hbm_simple_xrt/`)
 
-**Full build — host binaries + bitstream:**
+The kernel is implemented in RTL (Verilog/SystemVerilog). Building it is a two-step process:
+1. **Package RTL → .xo** — Vivado packages the RTL source files into a kernel object (~1 minute)
+2. **Link .xo → .xclbin** — `v++` links the .xo into an FPGA bitstream (several hours)
+
+> **Note:** The `krnl_vadd.xclbin` currently in the repository was built from the original
+> C++ HLS kernel (`krnl_vadd.cpp`). To run the RTL version on hardware, you must rebuild it.
+
+### Full RTL rebuild (start here if switching from C++ to RTL)
+
 ```bash
-make
+make clean            # delete the old C++-based .xo and .xclbin
+make krnl_vadd.xo     # package RTL into .xo via Vivado (~1 min)
+make build            # link .xo into .xclbin via v++ (hours)
+make host             # compile host binaries (instant)
 ```
+
+### Incremental builds
 
 **Host binaries only — fast, no FPGA toolchain needed:**
 ```bash
@@ -52,15 +65,20 @@ make host
 ```
 Use when you only changed host C++ code (`host.cpp` or `host_tensor.cpp`).
 
-**RTL packaging only — Vivado packages RTL into .xo (minutes, not hours):**
+**RTL packaging only — verify Vivado can elaborate your RTL:**
 ```bash
 make krnl_vadd.xo
 ```
-Use to verify Vivado can elaborate your RTL without committing to full implementation.
+Use after RTL changes to quickly check for elaboration errors (~1 min).
 
-**Bitstream only — v++ links .xo to .xclbin (requires .xo to exist, takes hours):**
+**Bitstream only — link .xo to .xclbin (requires .xo to exist):**
 ```bash
 make build
+```
+
+**Full build — host + RTL packaging + bitstream:**
+```bash
+make
 ```
 
 **Clean all build artifacts:**
@@ -73,7 +91,8 @@ Always run this before rebuilding after RTL changes, or after a failed build.
 
 ## Running on Hardware (Linux server, from `hbm_simple_xrt/`)
 
-XRT must be sourced first. The `run.sh` wrapper handles this automatically.
+These commands work with any `krnl_vadd.xclbin` — whether built from C++ HLS or RTL.
+The host code is kernel-type agnostic. XRT must be sourced first; `run.sh` handles this automatically.
 
 **HBM bandwidth test — single-bank, multi-bank, high banks:**
 ```bash
