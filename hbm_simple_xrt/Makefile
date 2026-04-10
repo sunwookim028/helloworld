@@ -49,9 +49,8 @@ tensor_test: src/host_tensor.cpp
 # ── RTL kernel: package RTL sources as .xo via Vivado ────────────────────────
 build: krnl_vadd.xclbin
 
-krnl_vadd.xo: $(RTL_SRCS) kernel.xml package_kernel.tcl
-	vivado -mode batch -source package_kernel.tcl \
-	    -tclargs krnl_vadd $@ kernel.xml $(RTL_SRCS)
+krnl_vadd.xo: $(RTL_SRCS) kernel.xml pack_kernel.tcl
+	vivado -mode batch -source pack_kernel.tcl -notrace
 
 # ── Bitstream: link .xo to .xclbin ──────────────────────────────────────────
 krnl_vadd.xclbin: krnl_vadd.xo
