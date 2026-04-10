@@ -163,12 +163,14 @@ if {$gmem2_intf eq ""} {
 puts "INFO: m_axi_gmem2 interface: [get_property NAME $gmem2_intf]"
 
 # ==============================================================================
-# 5. Associate all bus interfaces with ap_clk
+# 5. Associate all bus interfaces with ap_clk (single-shot, not per-interface)
 # ==============================================================================
-ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk $core
-ipx::associate_bus_interfaces -busif m_axi_gmem0   -clock ap_clk $core
-ipx::associate_bus_interfaces -busif m_axi_gmem1   -clock ap_clk $core
-ipx::associate_bus_interfaces -busif m_axi_gmem2   -clock ap_clk $core
+# Using set_property on ASSOCIATED_BUSIF directly (colon-separated) is more
+# reliable than calling ipx::associate_bus_interfaces multiple times.
+set_property value "s_axi_control:m_axi_gmem0:m_axi_gmem1:m_axi_gmem2" \
+    [ipx::add_bus_parameter ASSOCIATED_BUSIF [ipx::get_bus_interfaces ap_clk -of_objects $core]]
+set_property value "ap_rst_n" \
+    [ipx::add_bus_parameter ASSOCIATED_RESET [ipx::get_bus_interfaces ap_clk -of_objects $core]]
 
 # ==============================================================================
 # 6. Set up register map for s_axi_control (kernel arguments)
