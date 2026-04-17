@@ -118,60 +118,74 @@ module krnl_vadd_ctrl #(
     assign size     = reg_size;
 
     // =========================================================================
-    // Write state machine (identical structure to tpu_slave_axi_lite.v)
+    // Write channel — Xilinx parallel-wait pattern (replaces old state_write FSM)
+    //
+    // Hold AWREADY and WREADY low until both AWVALID and WVALID are present,
+    // then pulse both high for one cycle.  This eliminates the race where W
+    // data arrives before AW address.  Both handshakes complete simultaneously,
+    // so the address is always valid when the register is written.
     // =========================================================================
-    reg [1:0] state_write;
+    reg aw_en;  // set after BVALID handshake, prevents double-accept
+
+    wire slv_reg_wren = axi_wready  && S_AXI_WVALID &&
+                        axi_awready && S_AXI_AWVALID;
+
+    // Read FSM state and localparams (shared Idle encoding)
     reg [1:0] state_read;
     localparam Idle  = 2'b00;
-    localparam Waddr = 2'b10;
-    localparam Wdata = 2'b11;
     localparam Raddr = 2'b10;
     localparam Rdata = 2'b11;
 
     integer byte_index;
 
+    // AWREADY: pulse high for one cycle when both channels are valid
     always @(posedge S_AXI_ACLK) begin
-        if (S_AXI_ARESETN == 1'b0) begin
-            axi_awready   <= 0;
-            axi_wready    <= 0;
-            axi_bvalid    <= 0;
-            axi_bresp     <= 0;
-            axi_awaddr    <= 0;
-            state_write   <= Idle;
+        if (!S_AXI_ARESETN) begin
+            axi_awready <= 1'b0;
+            aw_en       <= 1'b1;
         end else begin
-            case (state_write)
-                Idle:
-                    if (S_AXI_ARESETN == 1'b1) begin
-                        axi_awready <= 1'b1;
-                        axi_wready  <= 1'b1;
-                        state_write <= Waddr;
-                    end
-                Waddr:
-                    if (S_AXI_AWVALID && S_AXI_AWREADY) begin
-                        axi_awaddr <= S_AXI_AWADDR;
-                        if (S_AXI_WVALID) begin
-                            axi_awready <= 1'b1;
-                            state_write <= Waddr;
-                            axi_bvalid  <= 1'b1;
-                        end else begin
-                            axi_awready <= 1'b0;
-                            state_write <= Wdata;
-                            if (S_AXI_BREADY && axi_bvalid) axi_bvalid <= 1'b0;
-                        end
-                    end else begin
-                        state_write <= state_write;
-                        if (S_AXI_BREADY && axi_bvalid) axi_bvalid <= 1'b0;
-                    end
-                Wdata:
-                    if (S_AXI_WVALID) begin
-                        state_write <= Waddr;
-                        axi_bvalid  <= 1'b1;
-                        axi_awready <= 1'b1;
-                    end else begin
-                        state_write <= state_write;
-                        if (S_AXI_BREADY && axi_bvalid) axi_bvalid <= 1'b0;
-                    end
-            endcase
+            if (~axi_awready && S_AXI_AWVALID && S_AXI_WVALID && aw_en) begin
+                axi_awready <= 1'b1;
+                aw_en       <= 1'b0;
+            end else if (S_AXI_BREADY && axi_bvalid) begin
+                aw_en       <= 1'b1;
+                axi_awready <= 1'b0;
+            end else begin
+                axi_awready <= 1'b0;
+            end
+        end
+    end
+
+    // Latch write address on AW handshake
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN)
+            axi_awaddr <= {C_S_AXI_ADDR_WIDTH{1'b0}};
+        else if (~axi_awready && S_AXI_AWVALID && S_AXI_WVALID && aw_en)
+            axi_awaddr <= S_AXI_AWADDR;
+    end
+
+    // WREADY: mirrors AWREADY timing exactly
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN)
+            axi_wready <= 1'b0;
+        else if (~axi_wready && S_AXI_WVALID && S_AXI_AWVALID && aw_en)
+            axi_wready <= 1'b1;
+        else
+            axi_wready <= 1'b0;
+    end
+
+    // BVALID: assert after both handshakes, deassert on BREADY
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            axi_bvalid <= 1'b0;
+            axi_bresp  <= 2'b0;
+        end else begin
+            if (slv_reg_wren && ~axi_bvalid) begin
+                axi_bvalid <= 1'b1;
+                axi_bresp  <= 2'b0;  // OKAY
+            end else if (S_AXI_BREADY && axi_bvalid) begin
+                axi_bvalid <= 1'b0;
+            end
         end
     end
 
@@ -195,10 +209,8 @@ module krnl_vadd_ctrl #(
             // Self-clear ap_start when hardware signals ap_done
             if (ap_done) reg_ap_ctrl[0] <= 1'b0;
 
-            if (S_AXI_WVALID) begin
-                case ((S_AXI_AWVALID) ?
-                      S_AXI_AWADDR[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] :
-                      axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB])
+            if (slv_reg_wren) begin
+                case (axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB])
                     4'h0: // 0x00 ap_ctrl — only bit 0 (ap_start) is writable
                         for (byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1)
                             if (S_AXI_WSTRB[byte_index])

@@ -2,7 +2,7 @@
 // krnl_vadd_rd_mst.v — AXI4 burst read master (512-bit, HBM)
 //
 // Reads num_words × 512-bit words from base_addr via AXI4 burst transactions.
-// Each burst is up to 256 beats (AXI4 max, ARLEN=255).
+// Bursts are 4KB-boundary-aware (max 64 beats for 64-byte beat width).
 // Data is written into an external FIFO (wr_en / wr_data / fifo_almost_full).
 //
 // Modeled after tpu_master_axi_stream.v: clean state-based FSM, explicit
@@ -39,7 +39,7 @@ module krnl_vadd_rd_mst #(
     // AXI4 read master (AR + R channels)
     output reg                   M_AXI_ARVALID,
     output reg  [ADDR_WIDTH-1:0] M_AXI_ARADDR,
-    output reg  [7:0]            M_AXI_ARLEN,    // beats - 1 (max 255 = 256 beats)
+    output reg  [7:0]            M_AXI_ARLEN,    // beats - 1 (max 63 = 64 beats)
     output wire [2:0]            M_AXI_ARSIZE,   // 3'b110 = 64 bytes/beat
     output wire [1:0]            M_AXI_ARBURST,  // INCR
     output wire [3:0]            M_AXI_ARCACHE,
@@ -79,15 +79,30 @@ module krnl_vadd_rd_mst #(
     // =========================================================================
     reg [ADDR_WIDTH-1:0] rd_addr;        // current burst byte address
     reg [31:0]           words_done;     // total 512-bit words read so far
-    reg [8:0]            burst_len;      // current burst length in beats (1-256)
+    reg [8:0]            burst_len;      // current burst length in beats (1-64)
     reg [8:0]            beats_left;     // R beats remaining in current burst
 
-    // Compute next burst length based on words remaining AFTER the current burst.
-    // words_done and burst_len are the pre-NBA values; this combinational signal
-    // is latched into burst_len on the same cycle RLAST fires (NBA applies next cycle).
-    wire [31:0] next_remaining = num_words - (words_done + {23'b0, burst_len});
-    wire [8:0]  next_burst_len = (next_remaining > 32'd256) ? 9'd256 :
-                                  next_remaining[8:0];
+    // =========================================================================
+    // 4KB-boundary-aware burst length computation
+    // AXI4 bursts must not cross 4KB address boundaries.  For 64-byte beats
+    // (ARSIZE=110): max beats = min(4096/64, (4096 - addr[11:0])/64) = max 64.
+    // =========================================================================
+
+    // First burst (used in S_IDLE on start): cap based on base_addr alignment
+    wire [12:0] first_bytes_to_4k = 13'h1000 - {1'b0, base_addr[11:0]};
+    wire [8:0]  first_beats_to_4k = first_bytes_to_4k[12:6];
+    wire [8:0]  first_addr_cap    = (first_beats_to_4k < 9'd64) ? first_beats_to_4k : 9'd64;
+    wire [8:0]  first_burst_len   = (num_words > {23'b0, first_addr_cap}) ?
+                                     first_addr_cap : num_words[8:0];
+
+    // Subsequent bursts (used on RLAST): cap based on next address after current burst
+    wire [ADDR_WIDTH-1:0] next_addr        = rd_addr + ({23'b0, burst_len} << 6);
+    wire [31:0]           next_remaining   = num_words - (words_done + {23'b0, burst_len});
+    wire [12:0]           next_bytes_to_4k = 13'h1000 - {1'b0, next_addr[11:0]};
+    wire [8:0]            next_beats_to_4k = next_bytes_to_4k[12:6];
+    wire [8:0]            next_addr_cap    = (next_beats_to_4k < 9'd64) ? next_beats_to_4k : 9'd64;
+    wire [8:0]            next_burst_len   = (next_remaining > {23'b0, next_addr_cap}) ?
+                                              next_addr_cap : next_remaining[8:0];
 
     // =========================================================================
     // Main FSM
@@ -117,9 +132,13 @@ module krnl_vadd_rd_mst #(
                 S_IDLE: begin
                     words_done <= 32'd0;
                     if (start) begin
-                        rd_addr   <= base_addr;
-                        burst_len <= (num_words > 32'd256) ? 9'd256 : num_words[8:0];
-                        state     <= S_AR;
+                        if (num_words == 32'd0) begin
+                            state <= S_DONE;
+                        end else begin
+                            rd_addr   <= base_addr;
+                            burst_len <= first_burst_len;
+                            state     <= S_AR;
+                        end
                     end
                 end
 

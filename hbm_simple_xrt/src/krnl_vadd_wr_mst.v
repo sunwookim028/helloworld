@@ -2,7 +2,7 @@
 // krnl_vadd_wr_mst.v — AXI4 burst write master (512-bit, HBM)
 //
 // Writes num_words × 512-bit words to base_addr via AXI4 burst transactions.
-// Each burst is up to 256 beats (AXI4 max, AWLEN=255).
+// Bursts are 4KB-boundary-aware (max 64 beats for 64-byte beat width).
 // Data is sourced from an external FWFT FIFO.
 //
 // Modeled after minitpu tpu_master_axi_stream.v (same FWFT FIFO idiom):
@@ -43,7 +43,7 @@ module krnl_vadd_wr_mst #(
     // AXI4 write master (AW + W + B channels)
     output reg                   M_AXI_AWVALID,
     output reg  [ADDR_WIDTH-1:0] M_AXI_AWADDR,
-    output reg  [7:0]            M_AXI_AWLEN,    // beats - 1 (max 255 = 256 beats)
+    output reg  [7:0]            M_AXI_AWLEN,    // beats - 1 (max 63 = 64 beats)
     output wire [2:0]            M_AXI_AWSIZE,   // 3'b110 = 64 bytes/beat
     output wire [1:0]            M_AXI_AWBURST,  // INCR
     output wire [3:0]            M_AXI_AWCACHE,
@@ -97,14 +97,29 @@ module krnl_vadd_wr_mst #(
     // =========================================================================
     reg [ADDR_WIDTH-1:0] wr_addr;        // current burst byte address
     reg [31:0]           words_done;     // total 512-bit words written so far
-    reg [8:0]            burst_len;      // current burst length in beats (1-256)
+    reg [8:0]            burst_len;      // current burst length in beats (1-64)
 
-    // Compute next burst length based on words remaining AFTER the current burst.
-    // words_done and burst_len are the pre-NBA values; this combinational signal
-    // is latched into burst_len on the same cycle BVALID fires (NBA applies next cycle).
-    wire [31:0] next_remaining = num_words - (words_done + {23'b0, burst_len});
-    wire [8:0]  next_burst_len = (next_remaining > 32'd256) ? 9'd256 :
-                                  next_remaining[8:0];
+    // =========================================================================
+    // 4KB-boundary-aware burst length computation
+    // AXI4 bursts must not cross 4KB address boundaries.  For 64-byte beats
+    // (AWSIZE=110): max beats = min(4096/64, (4096 - addr[11:0])/64) = max 64.
+    // =========================================================================
+
+    // First burst (used in S_IDLE on start): cap based on base_addr alignment
+    wire [12:0] first_bytes_to_4k = 13'h1000 - {1'b0, base_addr[11:0]};
+    wire [8:0]  first_beats_to_4k = first_bytes_to_4k[12:6];
+    wire [8:0]  first_addr_cap    = (first_beats_to_4k < 9'd64) ? first_beats_to_4k : 9'd64;
+    wire [8:0]  first_burst_len   = (num_words > {23'b0, first_addr_cap}) ?
+                                     first_addr_cap : num_words[8:0];
+
+    // Subsequent bursts (used on BVALID): cap based on next address after current burst
+    wire [ADDR_WIDTH-1:0] next_addr        = wr_addr + ({23'b0, burst_len} << 6);
+    wire [31:0]           next_remaining   = num_words - (words_done + {23'b0, burst_len});
+    wire [12:0]           next_bytes_to_4k = 13'h1000 - {1'b0, next_addr[11:0]};
+    wire [8:0]            next_beats_to_4k = next_bytes_to_4k[12:6];
+    wire [8:0]            next_addr_cap    = (next_beats_to_4k < 9'd64) ? next_beats_to_4k : 9'd64;
+    wire [8:0]            next_burst_len   = (next_remaining > {23'b0, next_addr_cap}) ?
+                                              next_addr_cap : next_remaining[8:0];
 
     // =========================================================================
     // Main FSM
@@ -130,9 +145,14 @@ module krnl_vadd_wr_mst #(
                 S_IDLE: begin
                     words_done <= 32'd0;
                     if (start) begin
-                        wr_addr   <= base_addr;
-                        burst_len <= (num_words > 32'd256) ? 9'd256 : num_words[8:0];
-                        state     <= S_AW;
+                        if (num_words == 32'd0) begin
+                            done  <= 1'b1;
+                            state <= S_IDLE;
+                        end else begin
+                            wr_addr   <= base_addr;
+                            burst_len <= first_burst_len;
+                            state     <= S_AW;
+                        end
                     end
                 end
 
