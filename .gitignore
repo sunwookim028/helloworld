@@ -26,6 +26,12 @@ _x/
 .ipcache/
 emconfig.json
 
+# XRT runtime profiling/tracing outputs (controlled by xrt.ini)
+*.csv
+*.run_summary
+ext_metadata.json
+xsa.xml
+
 # Vivado kernel packaging scratch dirs
 _pack_project_*/
 ip_repo_*/
