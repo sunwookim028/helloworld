@@ -26,16 +26,10 @@ LDFLAGS  := -L$(XRT_ROOT)/lib -lxrt_coreutil -luuid -pthread
 
 # ── Kernel build settings ────────────────────────────────────────────────────
 PLATFORM    ?= xilinx_u280_gen3x16_xdma_1_202211_1
-TARGET      ?= hw
-VPP_FLAGS    = -t $(TARGET) --platform $(PLATFORM) --save-temps
 VPP_LDFLAGS  = --config krnl_matmul.cfg
 
-# Output xclbin name includes TARGET so hw and hw_emu coexist
-XCLBIN := krnl_matmul.$(TARGET).xclbin
-
 # Shorthand: "make build" defaults to hw
-build: TARGET := hw
-build: $(XCLBIN)
+build: krnl_matmul.hw.xclbin
 
 # ── RTL source files ──────────────────────────────────────────────────────────
 RTL_SRCS := src/krnl_matmul.sv src/krnl_vadd_ctrl.v \
@@ -58,19 +52,21 @@ host_matmul: src/host_matmul.cpp
 emconfig.json:
 	emconfigutil --platform $(PLATFORM) --nd 1
 
-hw_emu: TARGET := hw_emu
-hw_emu: emconfig.json $(XCLBIN)
+hw_emu: emconfig.json krnl_matmul.hw_emu.xclbin
 	@echo ""
-	@echo "hw_emu xclbin built: $(XCLBIN)"
-	@echo "Run with:  export XCL_EMULATION_MODE=hw_emu && ./host_matmul -x $(XCLBIN)"
+	@echo "hw_emu xclbin built: krnl_matmul.hw_emu.xclbin"
+	@echo "Run with:  export XCL_EMULATION_MODE=hw_emu && ./host_matmul -x krnl_matmul.hw_emu.xclbin"
 
 # ── RTL kernel: package as .xo ────────────────────────────────────────────────
 krnl_matmul.xo: $(RTL_SRCS) krnl_matmul.xml pack_krnl_matmul.tcl
 	vivado -mode batch -source pack_krnl_matmul.tcl -notrace
 
 # ── Link .xo → .xclbin ────────────────────────────────────────────────────────
-$(XCLBIN): krnl_matmul.xo
-	$(VPP) -l $(VPP_FLAGS) $(VPP_LDFLAGS) -o $@ $<
+krnl_matmul.hw_emu.xclbin: krnl_matmul.xo
+	$(VPP) -l -t hw_emu --platform $(PLATFORM) --save-temps $(VPP_LDFLAGS) -o $@ $<
+
+krnl_matmul.hw.xclbin: krnl_matmul.xo
+	$(VPP) -l -t hw --platform $(PLATFORM) --save-temps $(VPP_LDFLAGS) -o $@ $<
 
 # ── Clean ─────────────────────────────────────────────────────────────────────
 clean:
