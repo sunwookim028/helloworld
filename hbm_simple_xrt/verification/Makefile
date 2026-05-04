@@ -1,44 +1,50 @@
 #==============================================================================
-# Systolic Array + MXU Verification Makefile
-# Usage: make test_systolic_array   (or)   make test_mxu   (or)   make all
+# Systolic Array + MXU + matmul_top + krnl_matmul Verification Makefile
+#
+# All modules target N=32.
+#
+# Usage:
+#   make test_systolic_array   — systolic_array.sv  (32×32)
+#   make test_mxu              — mxu.sv             (32×32)
+#   make test_matmul           — matmul_top.sv       (32×32, HBM wrapper)
+#   make test_krnl_matmul      — krnl_matmul.sv      (full AXI kernel)
+#   make all                   — all of the above
 #==============================================================================
 
 IVERILOG = iverilog
-VVP = vvp
+VVP      = vvp
 
-# Directories
-SRC_DIR = ../src
+SRC_DIR  = ../src
 SIM_BUILD = sim_build
 
 # cocotb environment
 export COCOTB_REDUCED_LOG_FMT = 1
 export LIBPYTHON_LOC = $(shell python3 -c "import find_libpython; print(find_libpython.find_libpython())")
-export PYTHONPATH := $(PWD):$(PYTHONPATH)
+export PYTHONPATH   := $(PWD):$(PYTHONPATH)
 export PYGPI_PYTHON_BIN = $(shell which python3)
 
-# cocotb VPI library path
 COCOTB_LIBS = $(shell python3 -c "import cocotb; import os; print(os.path.join(os.path.dirname(cocotb.__file__), 'libs'))")
 
-# Iverilog flags
 IVFLAGS = -g2012 -Wall
 
-# RTL sources
-SRC_FP32      = $(SRC_DIR)/fp32_add.sv $(SRC_DIR)/fp32_mul.sv
-SRC_PE        = $(SRC_DIR)/pe.sv $(SRC_FP32)
-SRC_SYSTOLIC  = $(SRC_DIR)/systolic_array.sv $(SRC_PE)
-SRC_MXU       = $(SRC_DIR)/mxu.sv $(SRC_SYSTOLIC)
-SRC_MATMUL    = $(SRC_DIR)/matmul_top.sv $(SRC_MXU)
+# Source groups
+SRC_FP32     = $(SRC_DIR)/fp32_add.sv $(SRC_DIR)/fp32_mul.sv
+SRC_PE       = $(SRC_DIR)/pe.sv $(SRC_FP32)
+SRC_SYSTOLIC = $(SRC_DIR)/systolic_array.sv $(SRC_PE)
+SRC_MXU      = $(SRC_DIR)/mxu.sv $(SRC_SYSTOLIC)
+SRC_MATMUL   = $(SRC_DIR)/matmul_top.sv $(SRC_MXU)
+SRC_KRNL     = $(SRC_DIR)/krnl_matmul.sv $(SRC_DIR)/krnl_vadd_ctrl.v $(SRC_MATMUL) $(SRC_DIR)/fifo4.sv
 
 #==============================================================================
-.PHONY: all clean test_systolic_array test_mxu test_matmul test_matmul_4x4
+.PHONY: all clean test_systolic_array test_mxu test_matmul test_krnl_matmul
 
-all: test_systolic_array test_mxu test_matmul
+all: test_systolic_array test_mxu test_matmul test_krnl_matmul
 
 #==============================================================================
-# Systolic array test (N=16 by default)
+# Systolic array (32×32)
 #==============================================================================
 test_systolic_array: $(SIM_BUILD)/systolic_array.vvp
-	@echo "=== Running systolic_array tests ==="
+	@echo "=== Running systolic_array tests (N=32) ==="
 	MODULE=test_systolic_array \
 	COCOTB_TEST_MODULES=test_systolic_array \
 	TOPLEVEL=systolic_array \
@@ -46,15 +52,13 @@ test_systolic_array: $(SIM_BUILD)/systolic_array.vvp
 	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
 
 $(SIM_BUILD)/systolic_array.vvp: $(SRC_SYSTOLIC) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s systolic_array \
-		-DN_PARAM=16 \
-		$(SRC_SYSTOLIC)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s systolic_array $(SRC_SYSTOLIC)
 
 #==============================================================================
-# MXU wrapper test (N=16 by default)
+# MXU wrapper (32×32)
 #==============================================================================
 test_mxu: $(SIM_BUILD)/mxu.vvp
-	@echo "=== Running MXU tests ==="
+	@echo "=== Running MXU tests (N=32) ==="
 	MODULE=test_mxu \
 	COCOTB_TEST_MODULES=test_mxu \
 	TOPLEVEL=mxu \
@@ -62,14 +66,13 @@ test_mxu: $(SIM_BUILD)/mxu.vvp
 	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
 
 $(SIM_BUILD)/mxu.vvp: $(SRC_MXU) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s mxu \
-		$(SRC_MXU)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s mxu $(SRC_MXU)
 
 #==============================================================================
-# matmul_top integration test (N=16 by default)
+# matmul_top integration test (32×32)
 #==============================================================================
 test_matmul: $(SIM_BUILD)/matmul.vvp
-	@echo "=== Running matmul_top tests ==="
+	@echo "=== Running matmul_top tests (N=32) ==="
 	MODULE=test_matmul_top \
 	COCOTB_TEST_MODULES=test_matmul_top \
 	TOPLEVEL=matmul_top \
@@ -77,53 +80,21 @@ test_matmul: $(SIM_BUILD)/matmul.vvp
 	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
 
 $(SIM_BUILD)/matmul.vvp: $(SRC_MATMUL) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top \
-		$(SRC_MATMUL)
-
-test_matmul_4x4: $(SIM_BUILD)/matmul_4x4.vvp
-	@echo "=== Running 4x4 matmul_top tests ==="
-	MODULE=test_matmul_top \
-	COCOTB_TEST_MODULES=test_matmul_top \
-	TOPLEVEL=matmul_top \
-	TOPLEVEL_LANG=verilog \
-	MATMUL_N=4 \
-	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
-
-$(SIM_BUILD)/matmul_4x4.vvp: $(SRC_MATMUL) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top \
-		-Pmatmul_top.N=4 \
-		$(SRC_MATMUL)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top $(SRC_MATMUL)
 
 #==============================================================================
-# Small array tests (N=4, for quick regression / cross-check with minitpu)
+# krnl_matmul full AXI kernel test (32×32)
 #==============================================================================
-test_systolic_4x4: $(SIM_BUILD)/systolic_4x4.vvp
-	@echo "=== Running 4x4 systolic tests ==="
-	MODULE=test_systolic_array \
-	COCOTB_TEST_MODULES=test_systolic_array \
-	TOPLEVEL=systolic_array \
+test_krnl_matmul: $(SIM_BUILD)/krnl_matmul.vvp
+	@echo "=== Running krnl_matmul tests (N=32) ==="
+	MODULE=test_krnl_matmul \
+	COCOTB_TEST_MODULES=test_krnl_matmul \
+	TOPLEVEL=krnl_matmul \
 	TOPLEVEL_LANG=verilog \
-	SYSTOLIC_N=4 \
 	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
 
-$(SIM_BUILD)/systolic_4x4.vvp: $(SRC_SYSTOLIC) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s systolic_array \
-		-Psystolic_array.N=4 \
-		$(SRC_SYSTOLIC)
-
-test_mxu_4x4: $(SIM_BUILD)/mxu_4x4.vvp
-	@echo "=== Running 4x4 MXU tests ==="
-	MODULE=test_mxu \
-	COCOTB_TEST_MODULES=test_mxu \
-	TOPLEVEL=mxu \
-	TOPLEVEL_LANG=verilog \
-	MXU_N=4 \
-	$(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $<
-
-$(SIM_BUILD)/mxu_4x4.vvp: $(SRC_MXU) | $(SIM_BUILD)
-	$(IVERILOG) $(IVFLAGS) -o $@ -s mxu \
-		-Pmxu.N=4 \
-		$(SRC_MXU)
+$(SIM_BUILD)/krnl_matmul.vvp: $(SRC_KRNL) | $(SIM_BUILD)
+	$(IVERILOG) $(IVFLAGS) -o $@ -s krnl_matmul $(SRC_KRNL)
 
 #==============================================================================
 $(SIM_BUILD):

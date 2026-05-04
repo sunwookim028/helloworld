@@ -24,7 +24,7 @@ Autonomous matrix multiply accelerator. Given base addresses, it loads W and X f
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `N` | 16 | Matrix dimension (N×N) |
+| `N` | 32 | Matrix dimension (N×N) |
 | `DATA_WIDTH` | 32 | Element width (FP32) |
 | `BANKING_FACTOR` | 1 | Elements per memory transaction |
 | `ADDRESS_WIDTH` | 16 | Memory address width |

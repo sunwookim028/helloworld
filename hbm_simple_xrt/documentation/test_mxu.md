@@ -44,11 +44,11 @@ while True:
 - **Dictionary-based:** Uses a Python `dict` for sparse memory — only addresses that have been written contain data.
 
 ### Memory Map
-| Region            | Base Address | Size   | Contents            |
-|-------------------|-------------|--------|---------------------|
-| Weight matrix (W) | `0x0000`    | N² words| Row-major FP32     |
-| Input matrix (X)  | `0x0200`    | N² words| Row-major FP32     |
-| Output matrix     | `0x0400`    | N² words| Row-major FP32     |
+| Region            | Base Address | Size      | Contents            |
+|-------------------|-------------|-----------|---------------------|
+| Weight matrix (W) | `0x0000`    | N² words  | Row-major FP32      |
+| Input matrix (X)  | `0x0400`    | N² words  | Row-major FP32      |
+| Output matrix     | `0x0800`    | N² words  | Row-major FP32      |
 
 ### `load_matrices(mem, W, X)`
 Writes W and X numpy arrays into the memory dictionary at their respective base addresses, converting each float to its 32-bit IEEE-754 representation.
@@ -59,9 +59,9 @@ Reads N² elements from the output region, converts from bit patterns back to fl
 ### `run_matmul(dut, mem, W, X)`
 Complete operation sequence:
 1. Call `load_matrices()` to populate memory
-2. Set base address ports
+2. Set base address ports (`BASE_ADDR_W=0x0000`, `BASE_ADDR_X=0x0400`, `BASE_ADDR_OUT=0x0800`)
 3. Pulse `start` for one cycle
-4. Poll `done` for up to `TIMEOUT_CYCLES` (10,000) cycles
+4. Poll `done` for up to `TIMEOUT_CYCLES` (100,000) cycles
 5. Read and return the output matrix
 
 ### `reset_dut(dut)`
@@ -73,11 +73,12 @@ Same element-wise comparison as the systolic array tests, with default `rtol=1e-
 ## Configuration
 | Variable         | Source       | Default | Description                      |
 |------------------|-------------|---------|----------------------------------|
-| `N`              | `MXU_N` env | 16      | Matrix dimension                 |
+| `N`              | `MXU_N` env | 32      | Matrix dimension                 |
 | `DW`             | Hardcoded   | 32      | Data width                       |
-| `TIMEOUT_CYCLES` | Hardcoded   | 10,000  | Max cycles to wait for `done`    |
+| `TIMEOUT_CYCLES` | Hardcoded   | 100,000 | Max cycles to wait for `done`    |
 
 ## Design Notes
 - **MEM_LATENCY interaction:** The memory driver runs in cocotb's ReadWrite scheduling region, which executes *after* Verilog `always_ff` blocks in the Active region. This means the MXU needs `MEM_LATENCY ≥ 2` to capture valid data — with latency 1, it would sample `mem_resp_data` before the driver updates it.
 - **Deterministic random:** `random.seed(0xDEAD_BEEF)` ensures reproducible random test cases.
 - **Memory driver lifecycle:** A new memory driver coroutine is started for each test (or each case within `test_random_matrices`). The `mem` dictionary is fresh for each test, preventing cross-contamination.
+- **Timeout sizing:** 100,000 cycles is needed for N=32; the MXU runs (3×32−1)=95 array phases plus N²=1024 load + 1024 store cycles.

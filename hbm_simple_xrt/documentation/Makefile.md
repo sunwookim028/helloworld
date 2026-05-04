@@ -2,19 +2,17 @@
 **Path:** `verification/Makefile`
 
 ## Purpose
-Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and execution of cocotb test suites via VVP (Verilog VVP simulator). Provides targets for both the systolic array and MXU at two sizes (4×4 and 16×16).
+Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and execution of cocotb test suites via VVP. All targets default to N=32.
 
 ## Targets
-| Target                      | Description                                                   |
-|-----------------------------|---------------------------------------------------------------|
-| `make all`                  | Runs `test_systolic_array`, `test_mxu`, and `test_matmul`    |
-| `make test_systolic_array`  | Compile + run 16×16 systolic array tests (19 tests)           |
-| `make test_mxu`             | Compile + run 16×16 MXU tests (19 tests)                      |
-| `make test_matmul`          | Compile + run 16×16 matmul_top HBM integration tests (9 tests)|
-| `make test_systolic_4x4`    | Compile + run 4×4 systolic array tests (fast regression)      |
-| `make test_mxu_4x4`         | Compile + run 4×4 MXU tests                                   |
-| `make test_matmul_4x4`      | Compile + run 4×4 matmul_top tests (fastest regression)       |
-| `make clean`                | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd`    |
+| Target                      | Description                                                        |
+|-----------------------------|--------------------------------------------------------------------|
+| `make all`                  | Runs all four test suites                                          |
+| `make test_systolic_array`  | Compile + run 32×32 systolic array tests (19 tests)               |
+| `make test_mxu`             | Compile + run 32×32 MXU tests (19 tests)                          |
+| `make test_matmul`          | Compile + run 32×32 matmul_top HBM integration tests (9 tests)    |
+| `make test_krnl_matmul`     | Compile + run full Vitis AXI kernel tests (4 tests)               |
+| `make clean`                | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd`        |
 
 ## How It Works
 ### Step 1: Compilation (Icarus Verilog)
@@ -25,16 +23,9 @@ $(SIM_BUILD)/systolic_array.vvp: $(SRC_SYSTOLIC) | $(SIM_BUILD)
     iverilog -g2012 -Wall -o $@ -s systolic_array $(SRC_SYSTOLIC)
 ```
 
-- **`-g2012`**: Enable SystemVerilog 2012 syntax (required for `always_ff`, `logic`, `generate`, etc.)
+- **`-g2012`**: Enable SystemVerilog 2012 syntax (`always_ff`, `logic`, `generate`, `typedef enum`, etc.)
 - **`-Wall`**: Enable all warnings
 - **`-s <module>`**: Set the top-level module name
-- **`-DN_PARAM=16`**: Define macro (used in some variants, though the default parameter handles this)
-
-For 4×4 variants, parameter overrides are passed:
-```makefile
--Psystolic_array.N=4    # Override N parameter at elaboration time
--Pmxu.N=4
-```
 
 ### Step 2: Execution (VVP + cocotb)
 ```makefile
@@ -50,10 +41,6 @@ Environment variables tell cocotb:
 - `TOPLEVEL`: The top-level HDL module name
 - `TOPLEVEL_LANG`: Language (for VPI binding selection)
 
-VVP flags:
-- `-M $(COCOTB_LIBS)`: Path to cocotb's shared library directory
-- `-m libcocotbvpi_icarus`: Load the cocotb VPI module for Icarus
-
 ### RTL Source Dependencies
 ```
 SRC_FP32     = fp32_add.sv, fp32_mul.sv
@@ -61,13 +48,12 @@ SRC_PE       = pe.sv + SRC_FP32
 SRC_SYSTOLIC = systolic_array.sv + SRC_PE
 SRC_MXU      = mxu.sv + SRC_SYSTOLIC
 SRC_MATMUL   = matmul_top.sv + SRC_MXU
+SRC_KRNL     = krnl_matmul.sv + krnl_vadd_ctrl.v + SRC_MATMUL + fifo4.sv
 ```
 
-All source files are in `../src/` relative to the verification directory. The `SRC_MATMUL` chain includes all RTL because `matmul_top` instantiates the full `mxu` hierarchy.
+All source files are in `../src/` relative to the verification directory. `fifo4.sv` is included in `SRC_KRNL` for forward compatibility with the planned burst-mode integration.
 
 ### Environment Setup
-The Makefile exports several variables needed by cocotb:
-
 | Variable              | Purpose                                             |
 |-----------------------|-----------------------------------------------------|
 | `COCOTB_REDUCED_LOG_FMT` | Compact log format (less verbose timestamps)    |
@@ -75,12 +61,7 @@ The Makefile exports several variables needed by cocotb:
 | `PYTHONPATH`          | Includes current directory for test module import   |
 | `PYGPI_PYTHON_BIN`    | Python3 binary path                                 |
 
-The cocotb VPI library path is auto-discovered:
-```makefile
-COCOTB_LIBS = $(shell python3 -c "import cocotb; ...")
-```
-
 ## Design Notes
-- **WSL required:** This Makefile is designed to run under WSL (Windows Subsystem for Linux). The Windows version of Icarus Verilog cannot load cocotb's VPI DLL due to a subsystem version mismatch.
-- **No `SIM` variable:** Unlike cocotb's standard Makefile.sim flow, this Makefile directly invokes `iverilog` and `vvp` for full control over compilation flags.
-- **4×4 variants share test files:** The same Python test files are used for both 4×4 and 16×16, with `N` read from environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`).
+- **WSL required on Windows:** Icarus Verilog for Windows cannot load cocotb's VPI DLL. Run under WSL.
+- **No `SIM` variable:** This Makefile directly invokes `iverilog` and `vvp` for full control over compilation flags, rather than using cocotb's standard Makefile.sim flow.
+- **N is baked in:** All modules default to N=32. Override with environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`) if needed for debug.

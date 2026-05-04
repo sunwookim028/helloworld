@@ -18,13 +18,13 @@ import numpy as np
 
 random.seed(0xDEAD_BEEF)
 
-N = int(os.environ.get("MXU_N", 16))
+N = int(os.environ.get("MXU_N", 32))
 DW = 32
 
 BASE_ADDR_W   = 0x0000
-BASE_ADDR_X   = 0x0200
-BASE_ADDR_OUT = 0x0400
-TIMEOUT_CYCLES = 10000
+BASE_ADDR_X   = 0x0400   # N*N = 1024 = 0x400 for N=32
+BASE_ADDR_OUT = 0x0800   # 2*N*N = 2048 = 0x800 for N=32
+TIMEOUT_CYCLES = 100000
 
 
 # =============================================================================

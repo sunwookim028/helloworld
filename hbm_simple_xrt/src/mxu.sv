@@ -16,7 +16,7 @@
 `timescale 1ns/1ps
 
 module mxu #(
-    parameter int N             = 16,
+    parameter int N             = 32,
     parameter int DATA_WIDTH    = 32,
     parameter int BANKING_FACTOR = 1,
     parameter int ADDRESS_WIDTH = 16,
@@ -316,7 +316,7 @@ module mxu #(
                             all_done &= (row_ptr[i] >= N[ROW_PTR_BITS-1:0]);
 
                         // Watchdog: 4*N cycles should be more than enough
-                        if (all_done || phase_counter >= 4 * N[PHASE_BITS-1:0]) begin
+                        if (all_done || int'(phase_counter) >= 4 * N) begin
                             phase_counter <= '0;
                             load_idx      <= '0;
                             state         <= S_STORE_REQ;

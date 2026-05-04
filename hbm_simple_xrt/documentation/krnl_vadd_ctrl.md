@@ -3,7 +3,7 @@
 **Origin:** Adapted from `minitpu/tpu/src/system/tpu_slave_axi_lite.v`
 
 ## Purpose
-AXI4-Lite slave that implements the Vitis `ap_ctrl_hs` register interface. The host CPU uses this to configure kernel arguments (memory addresses, size) and to start/poll the kernel. The register layout matches what `kernel.xml` declares, so XRT can auto-discover argument offsets.
+AXI4-Lite slave that implements the Vitis `ap_ctrl_hs` register interface. Used by `krnl_matmul.sv` to provide the standard Vitis host interface. The host CPU uses this to configure kernel arguments (matrix byte addresses) and to start/poll the kernel. The register layout matches what `krnl_matmul.xml` declares, so XRT can auto-discover argument offsets.
 
 ## Register Map
 | Offset | Name         | Access     | Description                                      |
@@ -14,8 +14,8 @@ AXI4-Lite slave that implements the Vitis `ap_ctrl_hs` register interface. The h
 | `0x0C` | `ip_isr`    | RW         | Interrupt status register (unused)                |
 | `0x10` | `in1[31:0]` | RW         | Base address of `in1` (low 32 bits)               |
 | `0x14` | `in1[63:32]`| RW         | Base address of `in1` (high 32 bits)              |
-| `0x18` | `in2[31:0]` | RW         | Base address of `in2` (low, unused by logic)      |
-| `0x1C` | `in2[63:32]`| RW         | Base address of `in2` (high, unused by logic)     |
+| `0x18` | `in2[31:0]` | RW         | Base address of `in2` — X matrix (low 32 bits)    |
+| `0x1C` | `in2[63:32]`| RW         | Base address of `in2` — X matrix (high 32 bits)   |
 | `0x20` | `out_r[31:0]`| RW        | Base address of `out` (low 32 bits)               |
 | `0x24` | `out_r[63:32]`| RW       | Base address of `out` (high 32 bits)              |
 | `0x28` | `size`      | RW         | Number of 32-bit elements to process              |
@@ -49,6 +49,6 @@ The read response muxes between register values. For offset `0x00`, it returns t
 |------------|-------|--------------------------------------|
 | `ap_start` | 1     | Directly from `reg_ap_ctrl[0]`       |
 | `in1_ptr`  | 64    | `{reg_in1_hi, reg_in1_lo}`           |
-| `in2_ptr`  | 64    | `{reg_in2_hi, reg_in2_lo}` (unused)  |
+| `in2_ptr`  | 64    | `{reg_in2_hi, reg_in2_lo}` — X matrix byte address |
 | `out_ptr`  | 64    | `{reg_out_hi, reg_out_lo}`           |
 | `size`     | 32    | `reg_size`                           |

@@ -9,8 +9,7 @@ Tests the full pipeline:
 
 HBM memory model: dict of {word_addr: 512-bit Python int}
 Each 512-bit word holds ELEMS_PER_WORD = HBM_DATA_WIDTH / DATA_WIDTH elements.
-  N=16 → ELEMS_PER_WORD=16, WORDS_PER_MATRIX=16
-  N=4  → ELEMS_PER_WORD=16, WORDS_PER_MATRIX=1
+  N=32 → ELEMS_PER_WORD=16, WORDS_PER_MATRIX=64
 """
 
 import os
@@ -24,7 +23,7 @@ import numpy as np
 
 random.seed(0xCAFE_F00D)
 
-N             = int(os.environ.get("MATMUL_N", 16))
+N             = int(os.environ.get("MATMUL_N", 32))
 DW            = 32
 HBM_DW        = 512
 ELEMS_PER_WORD = HBM_DW // DW          # 16 elements per 512-bit word
@@ -36,7 +35,7 @@ HBM_ADDR_W   = 0
 HBM_ADDR_X   = WORDS_PER_MAT
 HBM_ADDR_OUT = 2 * WORDS_PER_MAT
 
-TIMEOUT_CYCLES = 50000
+TIMEOUT_CYCLES = 200000
 
 
 # =============================================================================
@@ -86,17 +85,22 @@ def unpack_matrix(base_word_addr: int, mem: dict) -> np.ndarray:
 
 
 # =============================================================================
-# HBM memory driver
-#
-# Timing mirrors the top-FSM HBM_MEM_LATENCY=2 requirement:
-#   After posedge N  (mem_rd_en=1): driver latches addr, drives mem_rd_data.
-#   Posedge N+1     : FSM waits (lat_cnt=0 < 1).
-#   Posedge N+2     : FSM captures mem_rd_data (lat_cnt=1 >= 1). ✓
-#
-# Writes are captured immediately (mem_wr_en + mem_wr_data in same cycle).
+# HBM memory driver (handshake-based)
 # =============================================================================
 async def memory_driver(dut, mem: dict):
-    last_addr = 0
+    """
+    Memory driver for the handshake-based matmul_top interface.
+
+    Timing:
+      Cycle N  : DUT asserts mem_rd_en / mem_wr_en (registered output → visible)
+      Cycle N+1: driver sees rd_en/wr_en, performs operation, drives responses
+      Cycle N+2: DUT (in WAIT state) sees mem_rsp_valid / mem_wr_done → advances
+
+    This matches matmul_top's wait-for-valid protocol.
+    """
+    last_rd_en = 0
+    last_wr_en = 0
+    last_addr  = 0
     while True:
         await RisingEdge(dut.clk)
         try:
@@ -105,30 +109,34 @@ async def memory_driver(dut, mem: dict):
             addr    = int(dut.mem_addr.value)
             wr_data = int(dut.mem_wr_data.value)
         except ValueError:
-            rd_en   = 0
-            wr_en   = 0
-            addr    = 0
-            wr_data = 0
+            rd_en = wr_en = addr = wr_data = 0
 
-        if rd_en:
-            last_addr = addr
         if wr_en:
             mem[addr] = wr_data
+        if rd_en:
+            last_addr = addr
 
-        # Drive mem_rd_data combinationally off last latched address
-        dut.mem_rd_data.value = mem.get(last_addr, 0)
+        # Responses based on PREVIOUS cycle's enables (1-cycle delay)
+        dut.mem_rd_data.value    = mem.get(last_addr, 0)
+        dut.mem_rsp_valid.value  = last_rd_en
+        dut.mem_wr_done.value    = last_wr_en
+
+        last_rd_en = rd_en
+        last_wr_en = wr_en
 
 
 # =============================================================================
 # Test helpers
 # =============================================================================
 async def reset_dut(dut):
-    dut.rst_n.value   = 0
-    dut.start.value   = 0
-    dut.addr_w.value  = HBM_ADDR_W
-    dut.addr_x.value  = HBM_ADDR_X
-    dut.addr_out.value = HBM_ADDR_OUT
+    dut.rst_n.value       = 0
+    dut.start.value       = 0
+    dut.addr_w.value      = HBM_ADDR_W
+    dut.addr_x.value      = HBM_ADDR_X
+    dut.addr_out.value    = HBM_ADDR_OUT
     dut.mem_rd_data.value = 0
+    dut.mem_rsp_valid.value = 0
+    dut.mem_wr_done.value   = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     dut.rst_n.value = 1

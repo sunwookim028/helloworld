@@ -64,10 +64,8 @@ Element-wise comparison with relative tolerance (for nonzero expected values) an
 ## Configuration
 | Variable | Source | Default | Description |
 |----------|--------|---------|-------------|
-| `N`      | `SYSTOLIC_N` env var | 16 | Array dimension |
+| `N`      | `SYSTOLIC_N` env var | 32 | Array dimension |
 | `DW`     | Hardcoded | 32 | Data width |
-
-The Makefile sets `SYSTOLIC_N=4` for the 4×4 variant, or leaves it at 16 for the full-size test.
 
 ## Design Notes
 - **Sequential drive+capture pattern:** The `Timer(1, "ns")` after each `RisingEdge` is critical — it allows the combinational `data_out` and `valid_out` to settle after the clock edge before sampling.

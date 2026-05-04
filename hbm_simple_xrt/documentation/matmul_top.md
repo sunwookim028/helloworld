@@ -20,20 +20,21 @@
 | `mem_rd_data` | in | HBM_DATA_WIDTH | 512-bit read data |
 | `mem_rd_en` | out | 1 | Read enable |
 | `mem_wr_en` | out | 1 | Write enable |
+| `mem_rsp_valid` | in | 1 | Handshake: read data is valid (assert one cycle after read completes) |
+| `mem_wr_done` | in | 1 | Handshake: write accepted (assert one cycle after write completes) |
 
-Memory interface is **word-addressed**: each address = one HBM_DATA_WIDTH-bit word (64 bytes at 512 bits).
+Memory interface is **word-addressed**: each address = one HBM_DATA_WIDTH-bit word (64 bytes at 512 bits). The handshake signals replace the old fixed-latency counter, making `matmul_top` latency-agnostic — it stalls in WAIT states until the memory model or AXI bridge signals completion.
 
 ### Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `N` | 16 | Matrix dimension (N×N) |
+| `N` | 32 | Matrix dimension (N×N) |
 | `DATA_WIDTH` | 32 | FP32 element width |
 | `HBM_DATA_WIDTH` | 512 | HBM bus width |
 | `ADDRESS_WIDTH` | 32 | Address width |
-| `HBM_MEM_LATENCY` | 2 | Cycles to wait after mem_rd_en before sampling |
 
-Key derived constants: `ELEMS_PER_WORD = 512/32 = 16`, `TOTAL_ELEMS = N²`, `WORDS_PER_MATRIX = N²/16` (16 for N=16, 1 for N=4).
+Key derived constants: `ELEMS_PER_WORD = 512/32 = 16`, `TOTAL_ELEMS = N² = 1024`, `WORDS_PER_MATRIX = 1024/16 = 64`.
 
 ## Internal BRAMs
 
@@ -54,18 +55,18 @@ S_IDLE →(start)→ S_LOAD_W_REQ → S_LOAD_W_WAIT → (×WORDS_PER_MATRIX)
      → S_STORE_REQ → S_STORE_WAIT → (×WORDS_PER_MATRIX) → S_DONE → S_IDLE
 ```
 
-**LOAD_W_REQ/WAIT:** Issues `mem_rd_en`, waits `HBM_MEM_LATENCY` cycles, unpacks `mem_rd_data` into `w_bram`:
+**LOAD_W_REQ/WAIT:** Issues `mem_rd_en`, then waits in WAIT until `mem_rsp_valid` is asserted. On assertion, unpacks `mem_rd_data` into `w_bram`:
 ```systemverilog
 for (int i = 0; i < ELEMS_PER_WORD; i++) begin
     int idx; idx = int'(word_idx) * ELEMS_PER_WORD + i;
     if (idx < TOTAL_ELEMS) w_bram[idx] <= mem_rd_data[i*DATA_WIDTH +: DATA_WIDTH];
 end
 ```
-**LOAD_X_REQ/WAIT:** Identical for `x_bram`. **COMPUTE_START:** Pulses `mxu_start`. **COMPUTE_WAIT:** Waits for `mxu_done`. **STORE_REQ/WAIT:** Packs `out_bram` into `mem_wr_data` and asserts `mem_wr_en`, waits `HBM_MEM_LATENCY` cycles per word. **DONE:** Pulses `done`, returns to S_IDLE.
+**LOAD_X_WAIT:** Identical for `x_bram`. **COMPUTE_START:** Pulses `mxu_start`. **COMPUTE_WAIT:** Waits for `mxu_done`. **STORE_REQ/WAIT:** Packs `out_bram` into `mem_wr_data`, asserts `mem_wr_en`, then waits until `mem_wr_done`. **DONE:** Pulses `done`, returns to S_IDLE.
 
 ## BRAM Read Path for MXU
 
-The MXU's BRAM reads use MEM_LATENCY=2, implemented by latching the address:
+The MXU's BRAM reads use `MEM_LATENCY=2`, implemented by latching the address:
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n)
     if (!rst_n)            bram_rd_addr <= '0;
@@ -74,10 +75,10 @@ always_ff @(posedge clk or negedge rst_n)
 always_comb  // combinational output on cycle 1, MXU samples on cycle 2
     if      (bram_rd_addr >= MXU_BASE_OUT) mxu_mem_resp_data = out_bram[bram_rd_addr - MXU_BASE_OUT];
     else if (bram_rd_addr >= MXU_BASE_X)   mxu_mem_resp_data = x_bram [bram_rd_addr - MXU_BASE_X];
-    else                                    mxu_mem_resp_data = w_bram [bram_rd_addr];
+    else                                   mxu_mem_resp_data = w_bram [bram_rd_addr];
 ```
 
-MXU internal address space: W=`0x0000`, X=`0x0100`, OUT=`0x0200` (fixed, sufficient for N≤16).
+MXU internal address space: W=`0x0000`, X=`0x0400`, OUT=`0x0800` (each region = N²=1024 elements for N=32).
 
 ## MXU Instantiation
 
@@ -91,7 +92,7 @@ u_mxu (.clk(clk), .rst_n(rst_n), .start(mxu_start), .done(mxu_done),
 
 ## Design Notes
 
-- **`HBM_MEM_LATENCY=2`**: Same cocotb timing constraint as the MXU's internal MEM_LATENCY — the memory driver runs after Verilog `always_ff` in the simulation scheduling order.
+- **Handshake memory model**: `mem_rsp_valid` and `mem_wr_done` decouple `matmul_top` from memory latency. The cocotb testbench and the AXI bridge in `krnl_matmul` both assert these one cycle after the transaction completes. This replaces the old fixed `HBM_MEM_LATENCY` counter.
 - **Word-addressed**: `mem_addr` increments by 1 per 512-bit word. Host sets `addr_w/x/out` in word-address units.
 - **No `automatic` variables**: Icarus limitation; all loop temporaries use `int idx; idx = expr;` split-declaration.
-- **Last-word padding**: If `TOTAL_ELEMS % ELEMS_PER_WORD != 0`, the final store word pads unused slots with zero (not needed for N=16 where 256/16=16 is exact).
+- **Last-word padding**: If `TOTAL_ELEMS % ELEMS_PER_WORD != 0`, the final store word pads unused slots with zero (not needed for N=32 where 1024/16=64 is exact).

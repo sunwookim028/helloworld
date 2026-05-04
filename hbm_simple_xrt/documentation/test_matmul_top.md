@@ -21,16 +21,16 @@ Tests the full `matmul_top` pipeline using a 512-bit word-addressed memory model
 ## Configuration
 
 ```python
-N              = int(os.environ.get("MATMUL_N", 16))
+N              = int(os.environ.get("MATMUL_N", 32))
 ELEMS_PER_WORD = HBM_DW // DW   # 16 elements per 512-bit word
-WORDS_PER_MAT  = ceil(N*N / ELEMS_PER_WORD)
+WORDS_PER_MAT  = ceil(N*N / ELEMS_PER_WORD)   # 64 words for N=32
 HBM_ADDR_W     = 0
-HBM_ADDR_X     = WORDS_PER_MAT
-HBM_ADDR_OUT   = 2 * WORDS_PER_MAT
-TIMEOUT_CYCLES = 50000           # larger than test_mxu.py (extra HBM phases)
+HBM_ADDR_X     = WORDS_PER_MAT                # 64
+HBM_ADDR_OUT   = 2 * WORDS_PER_MAT            # 128
+TIMEOUT_CYCLES = 200000
 ```
 
-For N=16: `WORDS_PER_MAT=16`, addresses 0/16/32. For N=4: `WORDS_PER_MAT=1`, addresses 0/1/2.
+For N=32: `WORDS_PER_MAT=64`, addresses 0 / 64 / 128.
 
 ## Key Components
 
@@ -41,18 +41,30 @@ Flattens an N×N float32 array row-major, packs ELEMS_PER_WORD elements per 512-
 Inverse of `pack_matrix`. Reads WORDS_PER_MAT words, extracts each 32-bit field, reconstructs N×N float32.
 
 ### `memory_driver(dut, mem)`
-Cocotb coroutine modeling a 512-bit word-addressed memory. After each rising edge: if `mem_rd_en`, latch `last_addr`; if `mem_wr_en`, write `mem[addr]=wr_data`. Always drives `dut.mem_rd_data = mem.get(last_addr, 0)`.
+Cocotb coroutine modeling a 512-bit word-addressed memory with the **handshake interface** used by `matmul_top`:
 
-Timing for `HBM_MEM_LATENCY=2`:
-- Cycle N: FSM sets `mem_rd_en=1`, `mem_addr=A`. Driver (ReadWrite region) sets `mem_rd_data=mem[A]`.
-- Cycle N+1: FSM waits (`lat_cnt=0 < 1`).
-- Cycle N+2: FSM samples `mem_rd_data`. ✓
+```python
+while True:
+    await RisingEdge(dut.clk)
+    last_rd_en = int(dut.mem_rd_en.value)
+    last_wr_en = int(dut.mem_wr_en.value)
+    addr       = int(dut.mem_addr.value)
+    if last_wr_en:
+        mem[addr] = int(dut.mem_wr_data.value)
+    dut.mem_rd_data.value   = mem.get(addr if last_rd_en else last_addr, 0)
+    dut.mem_rsp_valid.value = last_rd_en   # valid one cycle after rd_en
+    dut.mem_wr_done.value   = last_wr_en   # done one cycle after wr_en
+```
+
+- **`mem_rsp_valid`**: asserted for one cycle after `mem_rd_en` was seen. `matmul_top` stalls in LOAD_W_WAIT/LOAD_X_WAIT until this is high.
+- **`mem_wr_done`**: asserted for one cycle after `mem_wr_en` was seen. `matmul_top` stalls in STORE_WAIT until this is high.
 
 ### `run_matmul(dut, mem, W, X)`
-1. `pack_matrix(W/X, ...)` → set `addr_w/x/out` → pulse `start` → poll `done` (up to 50k cycles) → `unpack_matrix(HBM_ADDR_OUT, mem)`.
+1. `pack_matrix(W/X, ...)` → set `addr_w/x/out` → pulse `start` → poll `done` (up to 200k cycles) → `unpack_matrix(HBM_ADDR_OUT, mem)`.
 
 ## Design Notes
 
 - **Python big integers**: 512-bit values fit naturally in Python's arbitrary-precision ints; no special library needed.
-- **`test_hbm_word_boundary`**: Sets only element 15 of each word (`range(ELEMS_PER_WORD-1, TOTAL_ELEMS, ELEMS_PER_WORD)`). Catches off-by-one errors in the `[i*DW +: DW]` bit-slice where i=15 (bits [480:511]). N=4 is especially strong here: the entire 4×4 matrix fits in one word, so any element misplacement corrupts the whole result.
+- **Handshake vs. fixed latency**: The memory driver asserts `mem_rsp_valid`/`mem_wr_done` the cycle *after* seeing `mem_rd_en`/`mem_wr_en`. This matches the one-cycle-delayed handshake from the AXI bridge in `krnl_matmul.sv`.
+- **`test_hbm_word_boundary`**: Sets only element 15 of each word (`range(ELEMS_PER_WORD-1, TOTAL_ELEMS, ELEMS_PER_WORD)`). Catches off-by-one errors in the `[i*DW +: DW]` bit-slice where i=15 (bits [480:511]).
 - **Seed**: `random.seed(0xCAFE_F00D)`.

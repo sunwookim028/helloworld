@@ -21,8 +21,7 @@ import numpy as np
 
 random.seed(0xBEEF_CAFE)
 
-# Detect N from environment (set by Makefile for 4x4 variant) or default to 16
-N = int(os.environ.get("SYSTOLIC_N", 16))
+N = int(os.environ.get("SYSTOLIC_N", 32))
 DW = 32  # DATA_WIDTH
 
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// matmul_top.sv — HBM-width integration wrapper for MXU
+// matmul_top.sv — HBM-width integration wrapper for MXU (32×32)
 //
 // Bridges a 512-bit wide memory interface (modelling HBM) to the MXU's
 // 32-bit element memory port via internal BRAMs.
@@ -11,16 +11,20 @@
 //   4. Store  : pack out_bram → 512-bit words, write to HBM
 //
 // Memory interface: word-addressed (each address = one HBM_DATA_WIDTH-bit word)
+//
+// Handshake signals replace the old fixed-latency counter:
+//   mem_rsp_valid — asserted by the memory model/bridge one cycle after a read
+//                   completes; FSM captures mem_rd_data when this is high.
+//   mem_wr_done   — asserted one cycle after a write completes; FSM advances.
 // ============================================================================
 
 `timescale 1ns/1ps
 
 module matmul_top #(
-    parameter int N               = 16,
+    parameter int N               = 32,
     parameter int DATA_WIDTH      = 32,
     parameter int HBM_DATA_WIDTH  = 512,
-    parameter int ADDRESS_WIDTH   = 32,
-    parameter int HBM_MEM_LATENCY = 2       // >= 2 required for cocotb timing
+    parameter int ADDRESS_WIDTH   = 32
 )(
     input  logic clk,
     input  logic rst_n,
@@ -39,20 +43,23 @@ module matmul_top #(
     output logic [HBM_DATA_WIDTH-1:0] mem_wr_data,
     input  logic [HBM_DATA_WIDTH-1:0] mem_rd_data,
     output logic                      mem_rd_en,
-    output logic                      mem_wr_en
+    output logic                      mem_wr_en,
+
+    // Handshake responses from memory model / AXI bridge
+    input  logic                      mem_rsp_valid,  // read data valid
+    input  logic                      mem_wr_done     // write accepted
 );
 
     localparam int ELEMS_PER_WORD   = HBM_DATA_WIDTH / DATA_WIDTH;
     localparam int TOTAL_ELEMS      = N * N;
     localparam int WORDS_PER_MATRIX = (TOTAL_ELEMS + ELEMS_PER_WORD - 1) / ELEMS_PER_WORD;
     localparam int WORD_IDX_BITS    = $clog2(WORDS_PER_MATRIX + 1);
-    localparam int LAT_BITS         = $clog2(HBM_MEM_LATENCY + 1);
 
-    // MXU address space: W at 0x0000, X at 0x0100, OUT at 0x0200
-    // (fixed offsets large enough for up to N=16: TOTAL_ELEMS=256=0x100)
+    // MXU address space: W at 0x0000, X at 0x0400, OUT at 0x0800
+    // (each region = N*N = 1024 elements for N=32)
     localparam logic [15:0] MXU_BASE_W   = 16'h0000;
-    localparam logic [15:0] MXU_BASE_X   = 16'h0100;
-    localparam logic [15:0] MXU_BASE_OUT = 16'h0200;
+    localparam logic [15:0] MXU_BASE_X   = 16'h0400;
+    localparam logic [15:0] MXU_BASE_OUT = 16'h0800;
 
     // =========================================================================
     // Internal BRAMs (register arrays)
@@ -93,13 +100,7 @@ module matmul_top #(
     );
 
     // =========================================================================
-    // BRAM read path for MXU
-    //
-    // Latch address on read_en (mirrors cocotb memory driver behaviour).
-    // With MXU MEM_LATENCY=2:
-    //   Cycle 0: MXU sets addr + rd_en  →  bram_rd_addr latches next posedge
-    //   Cycle 1: bram_rd_addr = addr    →  mxu_mem_resp_data valid (comb)
-    //   Cycle 2: MXU captures resp_data ✓
+    // BRAM read path for MXU (latched address + combinational output)
     // =========================================================================
     logic [15:0] bram_rd_addr;
 
@@ -121,7 +122,6 @@ module matmul_top #(
 
     // =========================================================================
     // out_bram — written by MXU during compute, cleared on reset/start
-    // (separate always_ff so the main FSM can own w_bram/x_bram exclusively)
     // =========================================================================
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -155,14 +155,12 @@ module matmul_top #(
 
     state_t state;
     logic [WORD_IDX_BITS-1:0] word_idx;
-    logic [LAT_BITS-1:0]      lat_cnt;
     logic [ADDRESS_WIDTH-1:0] addr_w_reg, addr_x_reg, addr_out_reg;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state        <= S_IDLE;
             word_idx     <= '0;
-            lat_cnt      <= '0;
             mem_addr     <= '0;
             mem_wr_data  <= '0;
             mem_rd_en    <= 0;
@@ -202,12 +200,11 @@ module matmul_top #(
                     mem_addr  <= addr_w_reg +
                                  {{(ADDRESS_WIDTH-WORD_IDX_BITS){1'b0}}, word_idx};
                     mem_rd_en <= 1;
-                    lat_cnt   <= '0;
                     state     <= S_LOAD_W_WAIT;
                 end
 
                 S_LOAD_W_WAIT: begin
-                    if (lat_cnt >= HBM_MEM_LATENCY[$bits(lat_cnt)-1:0] - 1) begin
+                    if (mem_rsp_valid) begin
                         for (int i = 0; i < ELEMS_PER_WORD; i++) begin
                             int idx;
                             idx = int'(word_idx) * ELEMS_PER_WORD + i;
@@ -221,8 +218,6 @@ module matmul_top #(
                             word_idx <= word_idx + 1;
                             state    <= S_LOAD_W_REQ;
                         end
-                    end else begin
-                        lat_cnt <= lat_cnt + 1;
                     end
                 end
 
@@ -233,12 +228,11 @@ module matmul_top #(
                     mem_addr  <= addr_x_reg +
                                  {{(ADDRESS_WIDTH-WORD_IDX_BITS){1'b0}}, word_idx};
                     mem_rd_en <= 1;
-                    lat_cnt   <= '0;
                     state     <= S_LOAD_X_WAIT;
                 end
 
                 S_LOAD_X_WAIT: begin
-                    if (lat_cnt >= HBM_MEM_LATENCY[$bits(lat_cnt)-1:0] - 1) begin
+                    if (mem_rsp_valid) begin
                         for (int i = 0; i < ELEMS_PER_WORD; i++) begin
                             int idx;
                             idx = int'(word_idx) * ELEMS_PER_WORD + i;
@@ -252,8 +246,6 @@ module matmul_top #(
                             word_idx <= word_idx + 1;
                             state    <= S_LOAD_X_REQ;
                         end
-                    end else begin
-                        lat_cnt <= lat_cnt + 1;
                     end
                 end
 
@@ -287,20 +279,17 @@ module matmul_top #(
                             mem_wr_data[i*DATA_WIDTH +: DATA_WIDTH] <= '0;
                     end
                     mem_wr_en <= 1;
-                    lat_cnt   <= '0;
                     state     <= S_STORE_WAIT;
                 end
 
                 S_STORE_WAIT: begin
-                    if (lat_cnt >= HBM_MEM_LATENCY[$bits(lat_cnt)-1:0] - 1) begin
+                    if (mem_wr_done) begin
                         if (int'(word_idx) >= WORDS_PER_MATRIX - 1) begin
                             state <= S_DONE;
                         end else begin
                             word_idx <= word_idx + 1;
                             state    <= S_STORE_REQ;
                         end
-                    end else begin
-                        lat_cnt <= lat_cnt + 1;
                     end
                 end
 
