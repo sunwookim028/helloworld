@@ -23,14 +23,14 @@ Tests the full `matmul_top` pipeline using a 512-bit word-addressed memory model
 ```python
 N              = int(os.environ.get("MATMUL_N", 32))
 ELEMS_PER_WORD = HBM_DW // DW   # 16 elements per 512-bit word
-WORDS_PER_MAT  = ceil(N*N / ELEMS_PER_WORD)   # 64 words for N=32
+WORDS_PER_MAT  = ceil(N*N / ELEMS_PER_WORD)   # 16 words for N=16
 HBM_ADDR_W     = 0
-HBM_ADDR_X     = WORDS_PER_MAT                # 64
-HBM_ADDR_OUT   = 2 * WORDS_PER_MAT            # 128
+HBM_ADDR_X     = WORDS_PER_MAT                # 16
+HBM_ADDR_OUT   = 2 * WORDS_PER_MAT            # 32
 TIMEOUT_CYCLES = 200000
 ```
 
-For N=32: `WORDS_PER_MAT=64`, addresses 0 / 64 / 128.
+For N=16: `WORDS_PER_MAT=16`, addresses 0 / 16 / 32.
 
 ## Key Components
 

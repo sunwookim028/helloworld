@@ -78,7 +78,7 @@ always_comb  // combinational output on cycle 1, MXU samples on cycle 2
     else                                   mxu_mem_resp_data = w_bram [bram_rd_addr];
 ```
 
-MXU internal address space: W=`0x0000`, X=`0x0400`, OUT=`0x0800` (each region = N²=1024 elements for N=32).
+MXU internal address space: W=`0x0000`, X=`0x0400`, OUT=`0x0800` (each region = N²=256 elements for N=16; addresses left at 0x0400/0x0800 for alignment).
 
 ## MXU Instantiation
 
@@ -95,4 +95,4 @@ u_mxu (.clk(clk), .rst_n(rst_n), .start(mxu_start), .done(mxu_done),
 - **Handshake memory model**: `mem_rsp_valid` and `mem_wr_done` decouple `matmul_top` from memory latency. The cocotb testbench and the AXI bridge in `krnl_matmul` both assert these one cycle after the transaction completes. This replaces the old fixed `HBM_MEM_LATENCY` counter.
 - **Word-addressed**: `mem_addr` increments by 1 per 512-bit word. Host sets `addr_w/x/out` in word-address units.
 - **No `automatic` variables**: Icarus limitation; all loop temporaries use `int idx; idx = expr;` split-declaration.
-- **Last-word padding**: If `TOTAL_ELEMS % ELEMS_PER_WORD != 0`, the final store word pads unused slots with zero (not needed for N=32 where 1024/16=64 is exact).
+- **Last-word padding**: If `TOTAL_ELEMS % ELEMS_PER_WORD != 0`, the final store word pads unused slots with zero (not needed for N=16 where 256/16=16 is exact).

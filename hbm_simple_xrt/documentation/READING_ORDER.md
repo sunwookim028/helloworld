@@ -1,5 +1,5 @@
 # Reading Order
-You have an RTL/digital design background but have never seen this codebase. The project has two subsystems: a proven HBM DMA kernel (bandwidth reference + burst AXI patterns) and a 32×32 systolic array matmul kernel. Read them in the order below.
+You have an RTL/digital design background but have never seen this codebase. The project has two subsystems: a proven HBM DMA kernel (bandwidth reference + burst AXI patterns) and a 16×16 systolic array matmul kernel. Read them in the order below.
 
 ---
 
@@ -37,7 +37,7 @@ Kernel top-level. See how steps 1–4 connect. The two-state FSM fires both mast
 
 ## Part 2: Systolic Array Compute Engine
 
-32×32 FP32 matrix multiply: `OUT = X × W^T`. Read bottom-up through the datapath, then the controller.
+16×16 FP32 matrix multiply: `OUT = X × W^T`. Read bottom-up through the datapath, then the controller.
 
 ### 6. `src/fp32_mul.sv` → [fp32_mul.md](fp32_mul.md)
 Combinational FP32 multiplier — pure `always @(*)`. Skim special-case handling (NaN, Inf, zero), then the normal mantissa multiply. Takeaway: `result = a × b` in one combinational pass, zero latency.
@@ -52,7 +52,7 @@ A PE instantiates one `fp32_mul` and one `fp32_add`: `psum_out = (input × weigh
 - Each PE adds **exactly one cycle of latency** to everything passing through it
 
 ### 9. `src/systolic_array.sv` → [systolic_array.md](systolic_array.md)
-32×32 grid of PEs, wired with generate blocks. Read the three generate sections:
+16×16 grid of PEs, wired with generate blocks. Read the three generate sections:
 1. **West edge mux**: activations enter from `data_in` vs. from left PE
 2. **Switch routing**: right along row 0, then down each column
 3. **North edge mux**: `psum_in=0` at top row vs. from PE above
@@ -74,7 +74,7 @@ Bridges the 512-bit HBM interface to MXU's 32-bit element interface. Read after 
 
 ### 11. `src/matmul_top.sv` → [matmul_top.md](matmul_top.md)
 Focus on:
-1. **Localparam arithmetic**: `ELEMS_PER_WORD=16`, `WORDS_PER_MATRIX=64` for N=32
+1. **Localparam arithmetic**: `ELEMS_PER_WORD=16`, `WORDS_PER_MATRIX=16` for N=16
 2. **Handshake interface**: `mem_rsp_valid` / `mem_wr_done` replace fixed-latency counter; FSM stalls in WAIT states
 3. **BRAM read path**: `bram_rd_addr` latched one cycle after `mxu_mem_rd_en`, then `mxu_mem_resp_data` driven combinationally (implements MEM_LATENCY=2)
 4. **Store pack loop**: 32-bit `out_bram` elements packed into one 512-bit `mem_wr_data` word
@@ -88,8 +88,7 @@ The top-level Vitis kernel. Now you see how everything connects:
 - `krnl_vadd_ctrl` provides ap_ctrl_hs (from Part 0)
 - `matmul_top` provides the compute (from Parts 2–3)
 - The AXI bridge converts matmul_top's sequential word requests to AXI4 transactions on gmem0/1/2
-- Address routing: `w_offs = mt_mem_addr - addr_w_word; if w_offs < 64 → gmem0 else → gmem1`
-- **Current limitation**: single-beat transactions (ARLEN=0); burst upgrade will use rd_mst/wr_mst from Part 1
+- Address routing: `w_offs = mt_mem_addr - addr_w_word; if w_offs < 16 → gmem0 else → gmem1`
 
 ### 13. `krnl_matmul.xml`
 Kernel descriptor: 3 AXI4 master ports (gmem0/1/2), AXI4-Lite slave, args at offsets 0x10/0x18/0x20. Offsets must match `krnl_vadd_ctrl.v`'s register map exactly.
@@ -102,7 +101,7 @@ Vivado batch script: creates IP project, associates clock/reset, configures AXI 
 ## Part 5: Verification
 
 ### 15. `verification/Makefile` → [Makefile.md](Makefile.md)
-Skim the RTL source dependency chain and how cocotb/iverilog are invoked. All targets default to N=32.
+Skim the RTL source dependency chain and how cocotb/iverilog are invoked. All targets default to N=16.
 
 ### 16. `verification/test_systolic_array.py` → [test_systolic_array.md](test_systolic_array.md)
 Drives the **exact same protocol** as the MXU's S_RUN state, from Python. If you understood step 10's S_RUN, this clicks immediately.
@@ -127,7 +126,7 @@ Read last. Complete data flow diagrams, systolic timing, verification strategy, 
 
 ## Summary
 **Steps 1–5**: HBM DMA engine — burst AXI4 patterns, FWFT FIFO idiom.  
-**Steps 6–10**: Systolic array — FP32 arithmetic → PE → 32×32 grid → MXU controller.  
+**Steps 6–10**: Systolic array — FP32 arithmetic → PE → 16×16 grid → MXU controller.  
 **Step 11**: HBM bridge — 512-bit packing, handshake memory interface.  
 **Steps 12–14**: Production Vitis kernel — AXI bridge, packaging.  
 **Steps 15–19**: Verification — cocotb testbenches at four isolation levels.

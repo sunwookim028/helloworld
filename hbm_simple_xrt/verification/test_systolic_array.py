@@ -21,7 +21,7 @@ import numpy as np
 
 random.seed(0xBEEF_CAFE)
 
-N = int(os.environ.get("SYSTOLIC_N", 32))
+N = int(os.environ.get("SYSTOLIC_N", 16))
 DW = 32  # DATA_WIDTH
 
 

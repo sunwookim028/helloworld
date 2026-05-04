@@ -1,12 +1,12 @@
 #==============================================================================
 # Systolic Array + MXU + matmul_top + krnl_matmul Verification Makefile
 #
-# All modules target N=32.
+# All modules target N=16.
 #
 # Usage:
-#   make test_systolic_array   — systolic_array.sv  (32×32)
-#   make test_mxu              — mxu.sv             (32×32)
-#   make test_matmul           — matmul_top.sv       (32×32, HBM wrapper)
+#   make test_systolic_array   — systolic_array.sv  (16×16)
+#   make test_mxu              — mxu.sv             (16×16)
+#   make test_matmul           — matmul_top.sv       (16×16, HBM wrapper)
 #   make test_krnl_matmul      — krnl_matmul.sv      (full AXI kernel)
 #   make all                   — all of the above
 #==============================================================================
@@ -43,10 +43,10 @@ SRC_KRNL     = $(SRC_DIR)/krnl_matmul.sv $(SRC_DIR)/krnl_vadd_ctrl.v \
 all: test_systolic_array test_mxu test_matmul test_krnl_matmul
 
 #==============================================================================
-# Systolic array (32×32)
+# Systolic array (16×16)
 #==============================================================================
 test_systolic_array: $(SIM_BUILD)/systolic_array.vvp
-	@echo "=== Running systolic_array tests (N=32) ==="
+	@echo "=== Running systolic_array tests (N=16) ==="
 	MODULE=test_systolic_array \
 	COCOTB_TEST_MODULES=test_systolic_array \
 	TOPLEVEL=systolic_array \
@@ -57,10 +57,10 @@ $(SIM_BUILD)/systolic_array.vvp: $(SRC_SYSTOLIC) | $(SIM_BUILD)
 	$(IVERILOG) $(IVFLAGS) -o $@ -s systolic_array $(SRC_SYSTOLIC)
 
 #==============================================================================
-# MXU wrapper (32×32)
+# MXU wrapper (16×16)
 #==============================================================================
 test_mxu: $(SIM_BUILD)/mxu.vvp
-	@echo "=== Running MXU tests (N=32) ==="
+	@echo "=== Running MXU tests (N=16) ==="
 	MODULE=test_mxu \
 	COCOTB_TEST_MODULES=test_mxu \
 	TOPLEVEL=mxu \
@@ -71,10 +71,10 @@ $(SIM_BUILD)/mxu.vvp: $(SRC_MXU) | $(SIM_BUILD)
 	$(IVERILOG) $(IVFLAGS) -o $@ -s mxu $(SRC_MXU)
 
 #==============================================================================
-# matmul_top integration test (32×32)
+# matmul_top integration test (16×16)
 #==============================================================================
 test_matmul: $(SIM_BUILD)/matmul.vvp
-	@echo "=== Running matmul_top tests (N=32) ==="
+	@echo "=== Running matmul_top tests (N=16) ==="
 	MODULE=test_matmul_top \
 	COCOTB_TEST_MODULES=test_matmul_top \
 	TOPLEVEL=matmul_top \
@@ -85,10 +85,10 @@ $(SIM_BUILD)/matmul.vvp: $(SRC_MATMUL) | $(SIM_BUILD)
 	$(IVERILOG) $(IVFLAGS) -o $@ -s matmul_top $(SRC_MATMUL)
 
 #==============================================================================
-# krnl_matmul full AXI kernel test (32×32)
+# krnl_matmul full AXI kernel test (16×16)
 #==============================================================================
 test_krnl_matmul: $(SIM_BUILD)/krnl_matmul.vvp
-	@echo "=== Running krnl_matmul tests (N=32) ==="
+	@echo "=== Running krnl_matmul tests (N=16) ==="
 	MODULE=test_krnl_matmul \
 	COCOTB_TEST_MODULES=test_krnl_matmul \
 	TOPLEVEL=krnl_matmul \

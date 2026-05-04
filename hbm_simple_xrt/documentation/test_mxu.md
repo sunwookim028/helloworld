@@ -81,4 +81,4 @@ Same element-wise comparison as the systolic array tests, with default `rtol=1e-
 - **MEM_LATENCY interaction:** The memory driver runs in cocotb's ReadWrite scheduling region, which executes *after* Verilog `always_ff` blocks in the Active region. This means the MXU needs `MEM_LATENCY ≥ 2` to capture valid data — with latency 1, it would sample `mem_resp_data` before the driver updates it.
 - **Deterministic random:** `random.seed(0xDEAD_BEEF)` ensures reproducible random test cases.
 - **Memory driver lifecycle:** A new memory driver coroutine is started for each test (or each case within `test_random_matrices`). The `mem` dictionary is fresh for each test, preventing cross-contamination.
-- **Timeout sizing:** 100,000 cycles is needed for N=32; the MXU runs (3×32−1)=95 array phases plus N²=1024 load + 1024 store cycles.
+- **Timeout sizing:** 100,000 cycles is needed for N=16; the MXU runs (3×16−1)=47 array phases plus N²=256 load + 256 store cycles.

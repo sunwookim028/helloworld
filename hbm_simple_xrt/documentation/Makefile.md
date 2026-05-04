@@ -2,15 +2,15 @@
 **Path:** `verification/Makefile`
 
 ## Purpose
-Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and execution of cocotb test suites via VVP. All targets default to N=32.
+Orchestrates compilation of SystemVerilog RTL sources with Icarus Verilog and execution of cocotb test suites via VVP. All targets default to N=16.
 
 ## Targets
 | Target                      | Description                                                        |
 |-----------------------------|--------------------------------------------------------------------|
 | `make all`                  | Runs all four test suites                                          |
-| `make test_systolic_array`  | Compile + run 32×32 systolic array tests (19 tests)               |
-| `make test_mxu`             | Compile + run 32×32 MXU tests (19 tests)                          |
-| `make test_matmul`          | Compile + run 32×32 matmul_top HBM integration tests (9 tests)    |
+| `make test_systolic_array`  | Compile + run 16×16 systolic array tests (19 tests)               |
+| `make test_mxu`             | Compile + run 16×16 MXU tests (19 tests)                          |
+| `make test_matmul`          | Compile + run 16×16 matmul_top HBM integration tests (9 tests)    |
 | `make test_krnl_matmul`     | Compile + run full Vitis AXI kernel tests (4 tests)               |
 | `make clean`                | Remove `sim_build/`, `results.xml`, `__pycache__`, `*.vcd`        |
 
@@ -64,4 +64,4 @@ All source files are in `../src/` relative to the verification directory. `fifo4
 ## Design Notes
 - **WSL required on Windows:** Icarus Verilog for Windows cannot load cocotb's VPI DLL. Run under WSL.
 - **No `SIM` variable:** This Makefile directly invokes `iverilog` and `vvp` for full control over compilation flags, rather than using cocotb's standard Makefile.sim flow.
-- **N is baked in:** All modules default to N=32. Override with environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`) if needed for debug.
+- **N is baked in:** All modules default to N=16. Override with environment variables (`SYSTOLIC_N`, `MXU_N`, `MATMUL_N`) if needed for debug.

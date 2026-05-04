@@ -1,5 +1,5 @@
 // ============================================================================
-// krnl_matmul.sv — Vitis RTL kernel: 32×32 FP32 matrix multiply over HBM
+// krnl_matmul.sv — Vitis RTL kernel: 16×16 FP32 matrix multiply over HBM
 //                  AXI4 burst DMA via krnl_vadd_rd_mst / krnl_vadd_wr_mst
 //
 // Computes OUT = X × W^T using the systolic array pipeline.
@@ -7,15 +7,15 @@
 // Architecture:
 //   krnl_vadd_ctrl       — AXI4-Lite slave, ap_ctrl_hs register map
 //   matmul_top           — loads W/X BRAMs, drives MXU, writes out_bram
-//   krnl_vadd_rd_mst ×2  — one 64-beat burst read: W (gmem0), X (gmem1)
-//   krnl_vadd_wr_mst ×1  — one 64-beat burst write: OUT (gmem2)
+//   krnl_vadd_rd_mst ×2  — one 16-beat burst read: W (gmem0), X (gmem1)
+//   krnl_vadd_wr_mst ×1  — one 16-beat burst write: OUT (gmem2)
 //   fifo4 ×3             — w_rd_fifo, x_rd_fifo, wr_fifo (depth 128)
 //
 // Sequencer FSM:
 //   IDLE → BURST_RD_W → BURST_RD_X → MT_START → MT_RUN → BURST_WR → DONE
 //
-// Each matrix is 32×32 FP32 = 4096 bytes = 64 × 512-bit words.
-// Replaces 192 single-beat AXI transactions with 3 burst transactions.
+// Each matrix is 16×16 FP32 = 1024 bytes = 16 × 512-bit words.
+// Replaces 48 single-beat AXI transactions with 3 burst transactions.
 // ============================================================================
 
 `timescale 1 ns / 1 ps
@@ -25,7 +25,7 @@ module krnl_matmul #(
     parameter integer C_S_AXI_CTRL_ADDR_WIDTH = 7,
     parameter integer C_M_AXI_DATA_WIDTH      = 512,
     parameter integer C_M_AXI_ADDR_WIDTH      = 64,
-    parameter integer N                       = 32,
+    parameter integer N                       = 16,
     parameter integer DATA_WIDTH              = 32
 )(
     input  wire ap_clk,

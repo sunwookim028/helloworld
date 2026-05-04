@@ -26,9 +26,9 @@ From the `verification/` directory (inside WSL if on Windows):
 make all
 
 # Individual targets
-make test_systolic_array    # 32×32 systolic array (19 tests)
-make test_mxu               # 32×32 MXU with memory interface (19 tests)
-make test_matmul            # 32×32 matmul_top HBM integration (9 tests)
+make test_systolic_array    # 16×16 systolic array (19 tests)
+make test_mxu               # 16×16 MXU with memory interface (19 tests)
+make test_matmul            # 16×16 matmul_top HBM integration (9 tests)
 make test_krnl_matmul       # Full Vitis AXI kernel (4 tests)
 
 # Clean build artifacts
@@ -37,7 +37,7 @@ make clean
 
 ## What's Being Tested
 
-All test suites verify `OUT = X × W^T` (FP32 matrix multiply, N=32) against numpy reference results.
+All test suites verify `OUT = X × W^T` (FP32 matrix multiply, N=16) against numpy reference results.
 
 **Systolic array tests** (`test_systolic_array.py`) drive the array protocol directly — weights, switch, activations — bypassing the MXU FSM.
 

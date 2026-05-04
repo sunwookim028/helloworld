@@ -1,7 +1,7 @@
 /**
  * host_matmul.cpp — Host program for krnl_matmul hardware emulation
  *
- * Tests 32×32 FP32 matrix multiply: OUT = X × W^T
+ * Tests 16×16 FP32 matrix multiply: OUT = X × W^T
  *
  * Usage:
  *   # Build hw_emu xclbin first:  make hw_emu
@@ -25,7 +25,7 @@
 #include "xrt/xrt_device.h"
 #include "xrt/xrt_kernel.h"
 
-static constexpr int N     = 32;
+static constexpr int N     = 16;
 static constexpr int TOTAL = N * N;
 static constexpr size_t MATRIX_BYTES = TOTAL * sizeof(float);
 

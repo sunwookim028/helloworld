@@ -1,9 +1,9 @@
 # Master Architecture — HBM Matmul Kernel
 
-This project computes **OUT = X × W^T** (32×32 FP32 matrix multiply) on an Alveo U280 using a weight-stationary systolic array, with data loaded from and stored to HBM. Three layers build on each other:
+This project computes **OUT = X × W^T** (16×16 FP32 matrix multiply) on an Alveo U280 using a weight-stationary systolic array, with data loaded from and stored to HBM. Three layers build on each other:
 
 - **A: HBM Data Mover** — proven standalone DMA kernel (`krnl_vadd.sv`), reference for burst AXI patterns
-- **B: Systolic Array Compute Engine** — 32×32 FP32 matrix multiply
+- **B: Systolic Array Compute Engine** — 16×16 FP32 matrix multiply
 - **C: HBM Integration Kernel** — `krnl_matmul.sv`: combines B with AXI4 master ports, Vitis ap_ctrl_hs, and an HBM bridge
 
 ## Subsystem A: HBM Data Mover (Reference)
@@ -25,14 +25,14 @@ Standalone DMA kernel used to validate HBM burst bandwidth. Not used in producti
 
 ## Subsystem B: Systolic Array Compute Engine
 
-Computes **OUT = X × W^T** for 32×32 FP32 matrices using weight-stationary dataflow.
+Computes **OUT = X × W^T** for 16×16 FP32 matrices using weight-stationary dataflow.
 
 ```
 ┌─────────────────────────── mxu.sv ────────────────────────────────────┐
 │  Weight Buffer ──►┌──────────────────┐──► Output Capture              │
-│  (N²=1024 words)  │  systolic_array  │    (N²=1024 words) ◄──► Memory │
-│  X Buffer     ──►│  (32×32 PE units)│                      Interface  │
-│  (N²=1024 words)  └──────────────────┘                                │
+│  (N²=256 words)  │  systolic_array  │    (N²=256 words) ◄──► Memory │
+│  X Buffer     ──►│  (16×16 PE units)│                      Interface  │
+│  (N²=256 words)  └──────────────────┘                                │
 │  FSM: IDLE→LOAD_W→LOAD_X→RUN→CAPTURE→STORE→DONE                      │
 └───────────────────────────────────────────────────────────────────────┘
 ```
@@ -57,7 +57,7 @@ Computes **OUT = X × W^T** for 32×32 FP32 matrices using weight-stationary dat
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-**Current bridge:** 64+64 single-beat reads + 64 single-beat writes = 192 AXI round trips per matmul. **Planned upgrade:** use burst masters from Subsystem A → 1+1+1 = 3 burst transactions.
+**Current implementation:** 3 burst transactions (16-beat each) via krnl_vadd_rd_mst/wr_mst — one per matrix.
 
 ## matmul_top: The HBM-to-MXU Bridge
 
@@ -73,7 +73,7 @@ Computes **OUT = X × W^T** for 32×32 FP32 matrices using weight-stationary dat
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-**Dimensional translation:** `ELEMS_PER_WORD=16`, `WORDS_PER_MATRIX=64` (for N=32). 64+64 read + 64 write = 192 HBM word transactions.
+**Dimensional translation:** `ELEMS_PER_WORD=16`, `WORDS_PER_MATRIX=16` (for N=16). 16+16 read + 16 write = 48 HBM word transactions.
 
 **Handshake memory interface:** `mem_rsp_valid` signals that read data is available; `mem_wr_done` signals write accepted. FSM stalls in WAIT states until the signal fires. This makes `matmul_top` latency-agnostic — it works with both the fixed-latency cocotb driver and the AXI bridge in `krnl_matmul`.
 
@@ -100,7 +100,7 @@ Reference DMA kernel (burst pattern source):
 | `krnl_vadd_ctrl.v` | A/C | AXI4-Lite slave, ap_ctrl_hs register map (shared) |
 | `matmul_top.sv` | C | 512-bit HBM ↔ 32-bit MXU bridge via BRAMs |
 | `mxu.sv` | B | FSM + memory interface + array orchestration |
-| `systolic_array.sv` | B | 32×32 PE grid, generate-block wiring |
+| `systolic_array.sv` | B | 16×16 PE grid, generate-block wiring |
 | `pe.sv` | B | Single MAC unit with double-buffered weights |
 | `fp32_mul.sv` | B | IEEE-754 FP32 multiply (combinational) |
 | `fp32_add.sv` | B | IEEE-754 FP32 add (combinational) |
@@ -125,22 +125,22 @@ Reference DMA kernel (burst pattern source):
 ## Matrix Multiply Execution: Phase-by-Phase
 
 ### Phase 1 — LOAD_W / LOAD_X
-MXU reads N²=1024 elements sequentially from memory into flat row-major buffers `weight_matrix[]` and `x_matrix[]`.
+MXU reads N²=256 elements sequentially from memory into flat row-major buffers `weight_matrix[]` and `x_matrix[]`.
 
-### Phase 2 — RUN (3N−1 = 95 phases)
+### Phase 2 — RUN (3N−1 = 47 phases)
 Three interleaved signal streams over `phase_counter`:
 - **Weight loading (phases 0 to 2N−2):** Column `c` gets weights on phases `[c, c+N−1]`. Weight index is `W[c][N-1-p]` — reversed so weights pipeline through column correctly.
-- **Switch (phase N−1 = 31):** Single-cycle pulse. All PEs swap inactive→active weight.
+- **Switch (phase N−1 = 15):** Single-cycle pulse. All PEs swap inactive→active weight.
 - **Activation feeding (phases N to 3N−2):** Row `r` starts at phase `N+r`. `x_matrix[ph*N + row]` — diagonal alignment ensures `X[i][r]` meets the correct partial sum from above.
 
 ### Phase 3 — Inside the Array
-Each PE on every valid cycle: `psum_out = (input × weight_active) + psum_in`. After N=32 accumulations, bottom row outputs `data_out[c] = Σ X[·][r] × W[c][r] = (X × W^T)[·][c]`.
+Each PE on every valid cycle: `psum_out = (input × weight_active) + psum_in`. After N=16 accumulations, bottom row outputs `data_out[c] = Σ X[·][r] × W[c][r] = (X × W^T)[·][c]`.
 
 ### Phase 4 — CAPTURE
-Per-column `row_ptr[c]` increments on each `valid_out[c]`. FSM waits until all columns have N=32 results.
+Per-column `row_ptr[c]` increments on each `valid_out[c]`. FSM waits until all columns have N=16 results.
 
 ### Phase 5 — STORE
-N²=1024 elements from `out_matrix[]` written sequentially back to memory.
+N²=256 elements from `out_matrix[]` written sequentially back to memory.
 
 ## Three-Level Verification Strategy
 
@@ -150,7 +150,7 @@ Testing is layered so failures isolate to the right subsystem:
 - **Level 3 failure** (L2 passing) → bug in matmul_top HBM packing/unpacking or handshake
 - **Level 4 failure** (L3 passing) → bug in krnl_matmul AXI bridge or kernel FSM
 
-| | N=32 |
+| | N=16 |
 |--|------|
 | Systolic Array (L1) | 19 tests |
 | MXU (L2) | 19 tests |
@@ -173,7 +173,7 @@ Icarus doesn't support `automatic` in `always_ff`. Loop variables use `int` decl
 Weights load in reversed row order (`W[c][N-1-p]`): first weight loaded into column `c` ends up in PE[N-1][c] (bottom), last in PE[0][c] (top). After switch, PE[r][c] holds `W[c][r]` = `W^T[r][c]`.
 
 **5. AXI Address Routing**
-Read routing in krnl_matmul uses unsigned 32-bit subtraction: `w_offs = mt_mem_addr - addr_w_word`. If `w_offs < 64` (WORDS_PER_MATRIX) → gmem0 (W), else → gmem1 (X). Works correctly for non-overlapping W/X allocations.
+Read routing in krnl_matmul uses unsigned 32-bit subtraction: `w_offs = mt_mem_addr - addr_w_word`. If `w_offs < 16` (WORDS_PER_MATRIX) → gmem0 (W), else → gmem1 (X). Works correctly for non-overlapping W/X allocations.
 
 ## Origin and Lineage
 
@@ -183,7 +183,7 @@ Read routing in krnl_matmul uses unsigned 32-bit subtraction: `w_offs = mt_mem_a
 | `fp32_add.sv` | `fp32_add.sv` | Direct copy |
 | `pe.sv` | `pe.sv` | Direct copy |
 | `systolic_array.sv` | `systolic.sv` | Hardcoded 4×4 → parameterized N×N |
-| `mxu.sv` | `mxu.sv` | Hardcoded if-blocks → parameterized, N=32 default |
+| `mxu.sv` | `mxu.sv` | Hardcoded if-blocks → parameterized, N=16 default |
 | `matmul_top.sv` | *(new)* | HBM integration layer, handshake interface |
 | `krnl_matmul.sv` | *(new)* | Vitis kernel wrapper + AXI bridge |
 | `krnl_vadd_ctrl.v` | `tpu_slave_axi_lite.v` | AXI4-Lite slave, reused unchanged |

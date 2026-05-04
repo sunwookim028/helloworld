@@ -3,9 +3,9 @@ Cocotb test suite for krnl_matmul — burst AXI4 kernel.
 
 Tests the complete RTL path:
   AXI4-Lite control → kernel trigger
-  AXI4 gmem0 burst slave → W matrix reads  (one 64-beat burst)
-  AXI4 gmem1 burst slave → X matrix reads  (one 64-beat burst)
-  AXI4 gmem2 burst slave → OUT matrix writes (one 64-beat burst)
+  AXI4 gmem0 burst slave → W matrix reads  (one 16-beat burst)
+  AXI4 gmem1 burst slave → X matrix reads  (one 16-beat burst)
+  AXI4 gmem2 burst slave → OUT matrix writes (one 16-beat burst)
   Output verification against numpy reference
 
 Memory layout (word-addressed, 512-bit words = 64 bytes each):
@@ -25,7 +25,7 @@ import numpy as np
 
 random.seed(0xABCD_1234)
 
-N              = 32
+N              = 16
 DW             = 32
 HBM_DW         = 512
 ELEMS_PER_WORD = HBM_DW // DW      # 16
@@ -34,7 +34,7 @@ WORDS_PER_MAT  = TOTAL_ELEMS // ELEMS_PER_WORD  # 64
 
 # Byte addresses of each matrix (page-aligned, non-overlapping)
 BYTE_ADDR_W   = 0x0000
-BYTE_ADDR_X   = 0x1000   # 4096 bytes = 64 words × 64 bytes
+BYTE_ADDR_X   = 0x1000   # page-aligned; matrix is 1024 bytes = 16 words × 64 bytes
 BYTE_ADDR_OUT = 0x2000
 
 WORD_ADDR_W   = BYTE_ADDR_W   >> 6

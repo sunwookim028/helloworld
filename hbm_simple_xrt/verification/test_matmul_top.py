@@ -9,7 +9,7 @@ Tests the full pipeline:
 
 HBM memory model: dict of {word_addr: 512-bit Python int}
 Each 512-bit word holds ELEMS_PER_WORD = HBM_DATA_WIDTH / DATA_WIDTH elements.
-  N=32 → ELEMS_PER_WORD=16, WORDS_PER_MATRIX=64
+  N=16 → ELEMS_PER_WORD=16, WORDS_PER_MATRIX=16
 """
 
 import os
@@ -23,7 +23,7 @@ import numpy as np
 
 random.seed(0xCAFE_F00D)
 
-N             = int(os.environ.get("MATMUL_N", 32))
+N             = int(os.environ.get("MATMUL_N", 16))
 DW            = 32
 HBM_DW        = 512
 ELEMS_PER_WORD = HBM_DW // DW          # 16 elements per 512-bit word

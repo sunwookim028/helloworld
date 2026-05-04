@@ -18,7 +18,7 @@
 `timescale 1ns/1ps
 
 module systolic_array #(
-    parameter int N = 32,
+    parameter int N = 16,
     parameter int DATA_WIDTH = 32
 )(
     input  logic clk,
