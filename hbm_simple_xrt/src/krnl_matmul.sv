@@ -1,21 +1,21 @@
 // ============================================================================
 // krnl_matmul.sv — Vitis RTL kernel: 32×32 FP32 matrix multiply over HBM
+//                  AXI4 burst DMA via krnl_vadd_rd_mst / krnl_vadd_wr_mst
 //
 // Computes OUT = X × W^T using the systolic array pipeline.
 //
 // Architecture:
-//   krnl_vadd_ctrl  — AXI4-Lite slave, ap_ctrl_hs register map
-//     Register reuse: in1_ptr = W byte addr, in2_ptr = X byte addr,
-//                     out_ptr = OUT byte addr  (size register ignored)
-//   matmul_top      — loads W/X, drives MXU, writes output to internal BRAM
-//   AXI bridge      — converts matmul_top's sequential memory port to AXI4:
-//                       gmem0 → W reads, gmem1 → X reads, gmem2 → OUT writes
+//   krnl_vadd_ctrl       — AXI4-Lite slave, ap_ctrl_hs register map
+//   matmul_top           — loads W/X BRAMs, drives MXU, writes out_bram
+//   krnl_vadd_rd_mst ×2  — one 64-beat burst read: W (gmem0), X (gmem1)
+//   krnl_vadd_wr_mst ×1  — one 64-beat burst write: OUT (gmem2)
+//   fifo4 ×3             — w_rd_fifo, x_rd_fifo, wr_fifo (depth 128)
 //
-// Host usage:
-//   krnl_matmul(bo_W, bo_X, bo_out)   — no size argument
-//   Each BO must be 32*32*4 = 4096 bytes (one 32×32 FP32 matrix).
-//   XRT allocates page-aligned buffers, satisfying the 4KB alignment
-//   requirement for single-burst AXI4 transactions.
+// Sequencer FSM:
+//   IDLE → BURST_RD_W → BURST_RD_X → MT_START → MT_RUN → BURST_WR → DONE
+//
+// Each matrix is 32×32 FP32 = 4096 bytes = 64 × 512-bit words.
+// Replaces 192 single-beat AXI transactions with 3 burst transactions.
 // ============================================================================
 
 `timescale 1 ns / 1 ps
@@ -155,6 +155,10 @@ module krnl_matmul #(
     localparam int ELEMS_PER_WORD   = C_M_AXI_DATA_WIDTH / DATA_WIDTH; // 16
     localparam int TOTAL_ELEMS      = N * N;                            // 1024
     localparam int WORDS_PER_MATRIX = TOTAL_ELEMS / ELEMS_PER_WORD;    // 64
+    // FIFO depth > WORDS_PER_MATRIX so almost_full (fires at DEPTH-1=127)
+    // never triggers during our 64-word bursts, preventing a deadlock on
+    // the final beat where the slave stalls waiting for RREADY.
+    localparam int FIFO_DEPTH       = 128;
 
     // =========================================================================
     // AXI4-Lite control slave
@@ -201,14 +205,159 @@ module krnl_matmul #(
         .S_AXI_RREADY  (s_axi_control_rready)
     );
 
-    // Word addresses: byte_addr >> 6 (512-bit word = 64 bytes)
-    // Take bits [37:6] of the 64-bit pointer → 32-bit word address
+    // Word addresses for matmul_top and routing (byte_addr >> 6, 512-bit words)
     wire [31:0] addr_w_word   = in1_ptr_w[37:6];
     wire [31:0] addr_x_word   = in2_ptr_w[37:6];
     wire [31:0] addr_out_word = out_ptr_w[37:6];
 
     // =========================================================================
-    // matmul_top instance
+    // FIFOs
+    // =========================================================================
+    logic fifo_flush;
+
+    wire                           w_fifo_wr_en,   w_fifo_rd_en;
+    wire [C_M_AXI_DATA_WIDTH-1:0] w_fifo_wr_data, w_fifo_rd_data;
+    wire                           w_fifo_almost_full, w_fifo_empty;
+
+    fifo4 #(.WIDTH(C_M_AXI_DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_w_rd_fifo (
+        .clk(ap_clk), .rst_n(ap_rst_n), .flush(fifo_flush),
+        .wr_en(w_fifo_wr_en), .wr_data(w_fifo_wr_data),
+        .rd_en(w_fifo_rd_en), .rd_data(w_fifo_rd_data),
+        .full(), .empty(w_fifo_empty), .almost_full(w_fifo_almost_full)
+    );
+
+    wire                           x_fifo_wr_en,   x_fifo_rd_en;
+    wire [C_M_AXI_DATA_WIDTH-1:0] x_fifo_wr_data, x_fifo_rd_data;
+    wire                           x_fifo_almost_full, x_fifo_empty;
+
+    fifo4 #(.WIDTH(C_M_AXI_DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_x_rd_fifo (
+        .clk(ap_clk), .rst_n(ap_rst_n), .flush(fifo_flush),
+        .wr_en(x_fifo_wr_en), .wr_data(x_fifo_wr_data),
+        .rd_en(x_fifo_rd_en), .rd_data(x_fifo_rd_data),
+        .full(), .empty(x_fifo_empty), .almost_full(x_fifo_almost_full)
+    );
+
+    wire                           wr_fifo_wr_en,   wr_fifo_rd_en;
+    wire [C_M_AXI_DATA_WIDTH-1:0] wr_fifo_wr_data, wr_fifo_rd_data;
+    wire                           wr_fifo_empty;
+
+    fifo4 #(.WIDTH(C_M_AXI_DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_wr_fifo (
+        .clk(ap_clk), .rst_n(ap_rst_n), .flush(fifo_flush),
+        .wr_en(wr_fifo_wr_en), .wr_data(wr_fifo_wr_data),
+        .rd_en(wr_fifo_rd_en), .rd_data(wr_fifo_rd_data),
+        .full(), .empty(wr_fifo_empty), .almost_full()
+    );
+
+    // =========================================================================
+    // Burst read master — W (gmem0)
+    // =========================================================================
+    logic rd_w_start;
+    wire  rd_w_done;
+
+    krnl_vadd_rd_mst #(
+        .DATA_WIDTH (C_M_AXI_DATA_WIDTH),
+        .ADDR_WIDTH (C_M_AXI_ADDR_WIDTH)
+    ) u_rd_w (
+        .clk              (ap_clk),
+        .rst_n            (ap_rst_n),
+        .start            (rd_w_start),
+        .base_addr        (in1_ptr_w),
+        .num_words        (WORDS_PER_MATRIX),
+        .done             (rd_w_done),
+        .fifo_wr_en       (w_fifo_wr_en),
+        .fifo_wr_data     (w_fifo_wr_data),
+        .fifo_almost_full (w_fifo_almost_full),
+        .M_AXI_ARVALID    (m_axi_gmem0_arvalid),
+        .M_AXI_ARADDR     (m_axi_gmem0_araddr),
+        .M_AXI_ARLEN      (m_axi_gmem0_arlen),
+        .M_AXI_ARSIZE     (m_axi_gmem0_arsize),
+        .M_AXI_ARBURST    (m_axi_gmem0_arburst),
+        .M_AXI_ARCACHE    (m_axi_gmem0_arcache),
+        .M_AXI_ARPROT     (m_axi_gmem0_arprot),
+        .M_AXI_ARQOS      (m_axi_gmem0_arqos),
+        .M_AXI_ARREADY    (m_axi_gmem0_arready),
+        .M_AXI_RDATA      (m_axi_gmem0_rdata),
+        .M_AXI_RRESP      (m_axi_gmem0_rresp),
+        .M_AXI_RLAST      (m_axi_gmem0_rlast),
+        .M_AXI_RVALID     (m_axi_gmem0_rvalid),
+        .M_AXI_RREADY     (m_axi_gmem0_rready)
+    );
+
+    // =========================================================================
+    // Burst read master — X (gmem1)
+    // =========================================================================
+    logic rd_x_start;
+    wire  rd_x_done;
+
+    krnl_vadd_rd_mst #(
+        .DATA_WIDTH (C_M_AXI_DATA_WIDTH),
+        .ADDR_WIDTH (C_M_AXI_ADDR_WIDTH)
+    ) u_rd_x (
+        .clk              (ap_clk),
+        .rst_n            (ap_rst_n),
+        .start            (rd_x_start),
+        .base_addr        (in2_ptr_w),
+        .num_words        (WORDS_PER_MATRIX),
+        .done             (rd_x_done),
+        .fifo_wr_en       (x_fifo_wr_en),
+        .fifo_wr_data     (x_fifo_wr_data),
+        .fifo_almost_full (x_fifo_almost_full),
+        .M_AXI_ARVALID    (m_axi_gmem1_arvalid),
+        .M_AXI_ARADDR     (m_axi_gmem1_araddr),
+        .M_AXI_ARLEN      (m_axi_gmem1_arlen),
+        .M_AXI_ARSIZE     (m_axi_gmem1_arsize),
+        .M_AXI_ARBURST    (m_axi_gmem1_arburst),
+        .M_AXI_ARCACHE    (m_axi_gmem1_arcache),
+        .M_AXI_ARPROT     (m_axi_gmem1_arprot),
+        .M_AXI_ARQOS      (m_axi_gmem1_arqos),
+        .M_AXI_ARREADY    (m_axi_gmem1_arready),
+        .M_AXI_RDATA      (m_axi_gmem1_rdata),
+        .M_AXI_RRESP      (m_axi_gmem1_rresp),
+        .M_AXI_RLAST      (m_axi_gmem1_rlast),
+        .M_AXI_RVALID     (m_axi_gmem1_rvalid),
+        .M_AXI_RREADY     (m_axi_gmem1_rready)
+    );
+
+    // =========================================================================
+    // Burst write master — OUT (gmem2)
+    // =========================================================================
+    logic wr_out_start;
+    wire  wr_out_done;
+
+    krnl_vadd_wr_mst #(
+        .DATA_WIDTH (C_M_AXI_DATA_WIDTH),
+        .ADDR_WIDTH (C_M_AXI_ADDR_WIDTH)
+    ) u_wr_out (
+        .clk           (ap_clk),
+        .rst_n         (ap_rst_n),
+        .start         (wr_out_start),
+        .base_addr     (out_ptr_w),
+        .num_words     (WORDS_PER_MATRIX),
+        .done          (wr_out_done),
+        .fifo_rd_en    (wr_fifo_rd_en),
+        .fifo_rd_data  (wr_fifo_rd_data),
+        .fifo_empty    (wr_fifo_empty),
+        .M_AXI_AWVALID (m_axi_gmem2_awvalid),
+        .M_AXI_AWADDR  (m_axi_gmem2_awaddr),
+        .M_AXI_AWLEN   (m_axi_gmem2_awlen),
+        .M_AXI_AWSIZE  (m_axi_gmem2_awsize),
+        .M_AXI_AWBURST (m_axi_gmem2_awburst),
+        .M_AXI_AWCACHE (m_axi_gmem2_awcache),
+        .M_AXI_AWPROT  (m_axi_gmem2_awprot),
+        .M_AXI_AWQOS   (m_axi_gmem2_awqos),
+        .M_AXI_AWREADY (m_axi_gmem2_awready),
+        .M_AXI_WDATA   (m_axi_gmem2_wdata),
+        .M_AXI_WSTRB   (m_axi_gmem2_wstrb),
+        .M_AXI_WLAST   (m_axi_gmem2_wlast),
+        .M_AXI_WVALID  (m_axi_gmem2_wvalid),
+        .M_AXI_WREADY  (m_axi_gmem2_wready),
+        .M_AXI_BRESP   (m_axi_gmem2_bresp),
+        .M_AXI_BVALID  (m_axi_gmem2_bvalid),
+        .M_AXI_BREADY  (m_axi_gmem2_bready)
+    );
+
+    // =========================================================================
+    // matmul_top
     // =========================================================================
     logic        mt_start;
     wire         mt_done;
@@ -243,12 +392,55 @@ module krnl_matmul #(
     );
 
     // =========================================================================
-    // Kernel top FSM
+    // FIFO glue — bridge matmul_top's sequential memory port to preloaded FIFOs
+    //
+    // W reads:  matmul_top addr in [addr_w_word, addr_w_word+63] → w_rd_fifo
+    // X reads:  otherwise                                        → x_rd_fifo
+    // OUT writes: all → wr_fifo (burst write dispatched after mt_done)
+    //
+    // Timing: mem_rd_en fires, FIFO head is captured and mem_rsp_valid is
+    // asserted one cycle later. FIFO rd_en is combinational so rptr advances
+    // at the same posedge — the next FIFO head is ready for the next request.
     // =========================================================================
-    localparam logic [1:0] KS_IDLE = 2'd0, KS_RUN = 2'd1, KS_DONE = 2'd2;
-    logic [1:0]  ks_state;
-    logic        ap_start_prev;
-    wire         start_rise = ap_start_w && !ap_start_prev;
+    wire [31:0] w_offs     = mt_mem_addr - addr_w_word;
+    wire        is_w_range = (w_offs < WORDS_PER_MATRIX[31:0]);
+
+    assign w_fifo_rd_en  = mt_mem_rd_en &&  is_w_range;
+    assign x_fifo_rd_en  = mt_mem_rd_en && !is_w_range;
+    assign wr_fifo_wr_en   = mt_mem_wr_en;
+    assign wr_fifo_wr_data = mt_mem_wr_data;
+
+    always_ff @(posedge ap_clk or negedge ap_rst_n) begin
+        if (!ap_rst_n) begin
+            mt_mem_rd_data   <= '0;
+            mt_mem_rsp_valid <= 1'b0;
+            mt_mem_wr_done   <= 1'b0;
+        end else begin
+            mt_mem_rsp_valid <= 1'b0;
+            mt_mem_wr_done   <= 1'b0;
+            if (mt_mem_rd_en) begin
+                mt_mem_rd_data   <= is_w_range ? w_fifo_rd_data : x_fifo_rd_data;
+                mt_mem_rsp_valid <= 1'b1;
+            end
+            if (mt_mem_wr_en)
+                mt_mem_wr_done <= 1'b1;
+        end
+    end
+
+    // =========================================================================
+    // Kernel sequencer FSM
+    // =========================================================================
+    localparam [2:0] KS_IDLE       = 3'd0,
+                     KS_BURST_RD_W = 3'd1,
+                     KS_BURST_RD_X = 3'd2,
+                     KS_MT_START   = 3'd3,
+                     KS_MT_RUN     = 3'd4,
+                     KS_BURST_WR   = 3'd5,
+                     KS_DONE       = 3'd6;
+
+    logic [2:0] ks_state;
+    logic       ap_start_prev;
+    wire        start_rise = ap_start_w && !ap_start_prev;
 
     assign ap_idle_w = (ks_state == KS_IDLE);
 
@@ -258,18 +450,48 @@ module krnl_matmul #(
             ap_start_prev <= 1'b0;
             ap_done_w     <= 1'b0;
             mt_start      <= 1'b0;
+            rd_w_start    <= 1'b0;
+            rd_x_start    <= 1'b0;
+            wr_out_start  <= 1'b0;
+            fifo_flush    <= 1'b0;
         end else begin
             ap_start_prev <= ap_start_w;
             ap_done_w     <= 1'b0;
             mt_start      <= 1'b0;
+            rd_w_start    <= 1'b0;
+            rd_x_start    <= 1'b0;
+            wr_out_start  <= 1'b0;
+            fifo_flush    <= 1'b0;
 
             case (ks_state)
                 KS_IDLE: if (start_rise) begin
-                    mt_start <= 1'b1;
-                    ks_state <= KS_RUN;
+                    fifo_flush <= 1'b1;   // clear stale FIFO state
+                    rd_w_start <= 1'b1;   // both take effect next posedge;
+                    ks_state   <= KS_BURST_RD_W; // FIFO clears before rd_mst writes
                 end
 
-                KS_RUN: if (mt_done) ks_state <= KS_DONE;
+                KS_BURST_RD_W: if (rd_w_done) begin
+                    rd_x_start <= 1'b1;
+                    ks_state   <= KS_BURST_RD_X;
+                end
+
+                KS_BURST_RD_X: if (rd_x_done) begin
+                    ks_state <= KS_MT_START;
+                end
+
+                KS_MT_START: begin
+                    mt_start <= 1'b1;
+                    ks_state <= KS_MT_RUN;
+                end
+
+                KS_MT_RUN: if (mt_done) begin
+                    wr_out_start <= 1'b1;
+                    ks_state     <= KS_BURST_WR;
+                end
+
+                KS_BURST_WR: if (wr_out_done) begin
+                    ks_state <= KS_DONE;
+                end
 
                 KS_DONE: begin
                     ap_done_w <= 1'b1;
@@ -282,173 +504,16 @@ module krnl_matmul #(
     end
 
     // =========================================================================
-    // AXI bridge FSM
-    //
-    // Converts matmul_top's one-at-a-time memory requests to AXI4 single-beat
-    // transactions:
-    //   Reads : gmem0 (W range) or gmem1 (X range)
-    //   Writes: gmem2 (OUT)
-    //
-    // Routing: if (mt_mem_addr - addr_w_word) < WORDS_PER_MATRIX → gmem0 (W)
-    //          else                                               → gmem1 (X)
-    // =========================================================================
-    localparam logic [2:0] BR_IDLE  = 3'd0,
-                           BR_RD_AR = 3'd1,
-                           BR_RD_R  = 3'd2,
-                           BR_WR_AW = 3'd3,
-                           BR_WR_W  = 3'd4,
-                           BR_WR_B  = 3'd5;
-
-    logic [2:0]  br_state;
-    logic        br_use_gmem0;
-    logic [C_M_AXI_ADDR_WIDTH-1:0] br_byte_addr;
-    logic [C_M_AXI_DATA_WIDTH-1:0] br_wr_latch;
-
-    // AXI output registers
-    logic        g0_arvalid_r, g1_arvalid_r;
-    logic [C_M_AXI_ADDR_WIDTH-1:0] g0_araddr_r, g1_araddr_r;
-    logic        g0_rready_r,  g1_rready_r;
-    logic        g2_awvalid_r, g2_wvalid_r, g2_bready_r;
-    logic [C_M_AXI_ADDR_WIDTH-1:0] g2_awaddr_r;
-    logic [C_M_AXI_DATA_WIDTH-1:0] g2_wdata_r;
-
-    // Byte address of matmul_top's current request (word_addr << 6)
-    wire [C_M_AXI_ADDR_WIDTH-1:0] mt_byte_addr =
-        {{(C_M_AXI_ADDR_WIDTH-38){1'b0}}, mt_mem_addr, 6'b0};
-
-    // Address routing: W range check in unsigned 32-bit arithmetic
-    wire [31:0] w_offs    = mt_mem_addr - addr_w_word;
-    wire        is_w_range = (w_offs < WORDS_PER_MATRIX[31:0]);
-
-    always_ff @(posedge ap_clk or negedge ap_rst_n) begin
-        if (!ap_rst_n) begin
-            br_state        <= BR_IDLE;
-            br_use_gmem0    <= 1'b0;
-            br_byte_addr    <= '0;
-            br_wr_latch     <= '0;
-            g0_arvalid_r    <= 1'b0;  g1_arvalid_r <= 1'b0;
-            g0_araddr_r     <= '0;    g1_araddr_r  <= '0;
-            g0_rready_r     <= 1'b0;  g1_rready_r  <= 1'b0;
-            g2_awvalid_r    <= 1'b0;  g2_wvalid_r  <= 1'b0;
-            g2_bready_r     <= 1'b0;
-            g2_awaddr_r     <= '0;    g2_wdata_r   <= '0;
-            mt_mem_rsp_valid <= 1'b0;
-            mt_mem_wr_done  <= 1'b0;
-            mt_mem_rd_data  <= '0;
-        end else begin
-            mt_mem_rsp_valid <= 1'b0;
-            mt_mem_wr_done   <= 1'b0;
-
-            case (br_state)
-
-                BR_IDLE: begin
-                    if (mt_mem_rd_en) begin
-                        br_use_gmem0 <= is_w_range;
-                        br_byte_addr <= mt_byte_addr;
-                        br_state     <= BR_RD_AR;
-                    end else if (mt_mem_wr_en) begin
-                        br_byte_addr <= mt_byte_addr;
-                        br_wr_latch  <= mt_mem_wr_data;
-                        br_state     <= BR_WR_AW;
-                    end
-                end
-
-                // ── Read: AR channel ──────────────────────────────────────
-                BR_RD_AR: begin
-                    if (br_use_gmem0) begin
-                        g0_arvalid_r <= 1'b1;
-                        g0_araddr_r  <= br_byte_addr;
-                        if (g0_arvalid_r && m_axi_gmem0_arready) begin
-                            g0_arvalid_r <= 1'b0;
-                            br_state     <= BR_RD_R;
-                        end
-                    end else begin
-                        g1_arvalid_r <= 1'b1;
-                        g1_araddr_r  <= br_byte_addr;
-                        if (g1_arvalid_r && m_axi_gmem1_arready) begin
-                            g1_arvalid_r <= 1'b0;
-                            br_state     <= BR_RD_R;
-                        end
-                    end
-                end
-
-                // ── Read: R channel ───────────────────────────────────────
-                BR_RD_R: begin
-                    if (br_use_gmem0) begin
-                        g0_rready_r <= 1'b1;
-                        if (g0_rready_r && m_axi_gmem0_rvalid) begin
-                            mt_mem_rd_data   <= m_axi_gmem0_rdata;
-                            mt_mem_rsp_valid <= 1'b1;
-                            g0_rready_r      <= 1'b0;
-                            br_state         <= BR_IDLE;
-                        end
-                    end else begin
-                        g1_rready_r <= 1'b1;
-                        if (g1_rready_r && m_axi_gmem1_rvalid) begin
-                            mt_mem_rd_data   <= m_axi_gmem1_rdata;
-                            mt_mem_rsp_valid <= 1'b1;
-                            g1_rready_r      <= 1'b0;
-                            br_state         <= BR_IDLE;
-                        end
-                    end
-                end
-
-                // ── Write: AW channel ─────────────────────────────────────
-                BR_WR_AW: begin
-                    g2_awvalid_r <= 1'b1;
-                    g2_awaddr_r  <= br_byte_addr;
-                    if (g2_awvalid_r && m_axi_gmem2_awready) begin
-                        g2_awvalid_r <= 1'b0;
-                        br_state     <= BR_WR_W;
-                    end
-                end
-
-                // ── Write: W channel ──────────────────────────────────────
-                BR_WR_W: begin
-                    g2_wvalid_r <= 1'b1;
-                    g2_wdata_r  <= br_wr_latch;
-                    if (g2_wvalid_r && m_axi_gmem2_wready) begin
-                        g2_wvalid_r <= 1'b0;
-                        g2_bready_r <= 1'b1;
-                        br_state    <= BR_WR_B;
-                    end
-                end
-
-                // ── Write: B channel ──────────────────────────────────────
-                BR_WR_B: begin
-                    g2_bready_r <= 1'b1;
-                    if (g2_bready_r && m_axi_gmem2_bvalid) begin
-                        mt_mem_wr_done <= 1'b1;
-                        g2_bready_r    <= 1'b0;
-                        br_state       <= BR_IDLE;
-                    end
-                end
-
-                default: br_state <= BR_IDLE;
-            endcase
-        end
-    end
-
-    // =========================================================================
-    // AXI port assignments
+    // Unused AXI channel tie-offs
     // =========================================================================
 
-    // gmem0 — W reads
-    assign m_axi_gmem0_arvalid = g0_arvalid_r;
-    assign m_axi_gmem0_araddr  = g0_araddr_r;
-    assign m_axi_gmem0_arlen   = 8'd0;
-    assign m_axi_gmem0_arsize  = 3'b110;
-    assign m_axi_gmem0_arburst = 2'b01;
-    assign m_axi_gmem0_arcache = 4'b1111;
-    assign m_axi_gmem0_arprot  = 3'b000;
-    assign m_axi_gmem0_arqos   = 4'b0000;
-    assign m_axi_gmem0_rready  = g0_rready_r;
+    // gmem0 write channels (W is read-only)
     assign m_axi_gmem0_awvalid = 1'b0;
     assign m_axi_gmem0_awaddr  = {C_M_AXI_ADDR_WIDTH{1'b0}};
     assign m_axi_gmem0_awlen   = 8'd0;
     assign m_axi_gmem0_awsize  = 3'b110;
     assign m_axi_gmem0_awburst = 2'b01;
-    assign m_axi_gmem0_awcache = 4'b1111;
+    assign m_axi_gmem0_awcache = 4'b0000;
     assign m_axi_gmem0_awprot  = 3'b000;
     assign m_axi_gmem0_awqos   = 4'b0000;
     assign m_axi_gmem0_wvalid  = 1'b0;
@@ -457,22 +522,13 @@ module krnl_matmul #(
     assign m_axi_gmem0_wlast   = 1'b0;
     assign m_axi_gmem0_bready  = 1'b1;
 
-    // gmem1 — X reads
-    assign m_axi_gmem1_arvalid = g1_arvalid_r;
-    assign m_axi_gmem1_araddr  = g1_araddr_r;
-    assign m_axi_gmem1_arlen   = 8'd0;
-    assign m_axi_gmem1_arsize  = 3'b110;
-    assign m_axi_gmem1_arburst = 2'b01;
-    assign m_axi_gmem1_arcache = 4'b1111;
-    assign m_axi_gmem1_arprot  = 3'b000;
-    assign m_axi_gmem1_arqos   = 4'b0000;
-    assign m_axi_gmem1_rready  = g1_rready_r;
+    // gmem1 write channels (X is read-only)
     assign m_axi_gmem1_awvalid = 1'b0;
     assign m_axi_gmem1_awaddr  = {C_M_AXI_ADDR_WIDTH{1'b0}};
     assign m_axi_gmem1_awlen   = 8'd0;
     assign m_axi_gmem1_awsize  = 3'b110;
     assign m_axi_gmem1_awburst = 2'b01;
-    assign m_axi_gmem1_awcache = 4'b1111;
+    assign m_axi_gmem1_awcache = 4'b0000;
     assign m_axi_gmem1_awprot  = 3'b000;
     assign m_axi_gmem1_awqos   = 4'b0000;
     assign m_axi_gmem1_wvalid  = 1'b0;
@@ -481,26 +537,13 @@ module krnl_matmul #(
     assign m_axi_gmem1_wlast   = 1'b0;
     assign m_axi_gmem1_bready  = 1'b1;
 
-    // gmem2 — OUT writes
-    assign m_axi_gmem2_awvalid = g2_awvalid_r;
-    assign m_axi_gmem2_awaddr  = g2_awaddr_r;
-    assign m_axi_gmem2_awlen   = 8'd0;
-    assign m_axi_gmem2_awsize  = 3'b110;
-    assign m_axi_gmem2_awburst = 2'b01;
-    assign m_axi_gmem2_awcache = 4'b1111;
-    assign m_axi_gmem2_awprot  = 3'b000;
-    assign m_axi_gmem2_awqos   = 4'b0000;
-    assign m_axi_gmem2_wvalid  = g2_wvalid_r;
-    assign m_axi_gmem2_wdata   = g2_wdata_r;
-    assign m_axi_gmem2_wstrb   = {(C_M_AXI_DATA_WIDTH/8){1'b1}};
-    assign m_axi_gmem2_wlast   = g2_wvalid_r;
-    assign m_axi_gmem2_bready  = g2_bready_r;
+    // gmem2 read channels (OUT is write-only)
     assign m_axi_gmem2_arvalid = 1'b0;
     assign m_axi_gmem2_araddr  = {C_M_AXI_ADDR_WIDTH{1'b0}};
     assign m_axi_gmem2_arlen   = 8'd0;
     assign m_axi_gmem2_arsize  = 3'b110;
     assign m_axi_gmem2_arburst = 2'b01;
-    assign m_axi_gmem2_arcache = 4'b1111;
+    assign m_axi_gmem2_arcache = 4'b0000;
     assign m_axi_gmem2_arprot  = 3'b000;
     assign m_axi_gmem2_arqos   = 4'b0000;
     assign m_axi_gmem2_rready  = 1'b0;

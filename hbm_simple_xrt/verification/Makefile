@@ -33,7 +33,9 @@ SRC_PE       = $(SRC_DIR)/pe.sv $(SRC_FP32)
 SRC_SYSTOLIC = $(SRC_DIR)/systolic_array.sv $(SRC_PE)
 SRC_MXU      = $(SRC_DIR)/mxu.sv $(SRC_SYSTOLIC)
 SRC_MATMUL   = $(SRC_DIR)/matmul_top.sv $(SRC_MXU)
-SRC_KRNL     = $(SRC_DIR)/krnl_matmul.sv $(SRC_DIR)/krnl_vadd_ctrl.v $(SRC_MATMUL) $(SRC_DIR)/fifo4.sv
+SRC_KRNL     = $(SRC_DIR)/krnl_matmul.sv $(SRC_DIR)/krnl_vadd_ctrl.v \
+               $(SRC_DIR)/krnl_vadd_rd_mst.v $(SRC_DIR)/krnl_vadd_wr_mst.v \
+               $(SRC_MATMUL) $(SRC_DIR)/fifo4.sv
 
 #==============================================================================
 .PHONY: all clean test_systolic_array test_mxu test_matmul test_krnl_matmul
