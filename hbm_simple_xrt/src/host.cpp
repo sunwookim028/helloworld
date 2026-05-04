@@ -61,10 +61,9 @@ double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int* bank_assign, uns
         bo0.sync(XCL_BO_SYNC_BO_TO_DEVICE);
         bo1.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
-        std::cout << "Writing args + ap_start...\n";
+        std::cout << "Execution of the kernel\n";
         auto kernel_start = std::chrono::high_resolution_clock::now();
         auto run = krnl(bo0, bo1, bo_out, size);
-        std::cout << "Waiting for ap_done...\n";
         run.wait();
         auto kernel_end = std::chrono::high_resolution_clock::now();
 
