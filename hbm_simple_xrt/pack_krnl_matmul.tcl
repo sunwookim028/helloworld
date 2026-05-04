@@ -16,6 +16,8 @@ set part        "xcu280-fsvh2892-2L-e"
 set rtl_files [list \
     "src/krnl_matmul.sv" \
     "src/krnl_vadd_ctrl.v" \
+    "src/krnl_vadd_rd_mst.v" \
+    "src/krnl_vadd_wr_mst.v" \
     "src/matmul_top.sv" \
     "src/mxu.sv" \
     "src/systolic_array.sv" \
