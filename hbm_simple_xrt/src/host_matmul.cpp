@@ -9,13 +9,16 @@
  *   ./host_matmul -x krnl_matmul.hw_emu.xclbin
  *
  *   # For real hardware:  make build
- *   ./host_matmul -x krnl_matmul.xclbin
+ *   ./host_matmul -x krnl_matmul.hw.xclbin
  */
 
 #include <iostream>
+#include <iomanip>
 #include <cstring>
 #include <cmath>
 #include <vector>
+#include <random>
+#include <chrono>
 #include <unistd.h>
 
 #include "xrt/xrt_bo.h"
@@ -53,8 +56,18 @@ static bool matrices_close(const float* got, const float* exp,
     return true;
 }
 
+static void print_matrix(const char* name, const float* m) {
+    std::cout << name << ":\n";
+    for (int i = 0; i < N; i++) {
+        std::cout << "  ";
+        for (int j = 0; j < N; j++)
+            std::cout << std::setw(10) << std::fixed << std::setprecision(3) << m[i*N+j];
+        std::cout << "\n";
+    }
+}
+
 static bool run_test(xrt::device& device, xrt::kernel& krnl, const char* label,
-                     const float* W, const float* X) {
+                     const float* W, const float* X, bool print_output = false) {
     auto bo_w   = xrt::bo(device, MATRIX_BYTES, krnl.group_id(0));
     auto bo_x   = xrt::bo(device, MATRIX_BYTES, krnl.group_id(1));
     auto bo_out = xrt::bo(device, MATRIX_BYTES, krnl.group_id(2));
@@ -67,8 +80,11 @@ static bool run_test(xrt::device& device, xrt::kernel& krnl, const char* label,
     bo_x.sync(XCL_BO_SYNC_BO_TO_DEVICE);
     bo_out.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
+    auto t_start = std::chrono::high_resolution_clock::now();
     auto run = krnl(bo_w, bo_x, bo_out);
     run.wait();
+    auto t_end = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
     bo_out.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 
@@ -76,7 +92,13 @@ static bool run_test(xrt::device& device, xrt::kernel& krnl, const char* label,
     compute_ref(W, X, ref);
 
     bool pass = matrices_close(bo_out.map<float*>(), ref);
-    std::cout << "[" << label << "] " << (pass ? "PASS" : "FAIL") << "\n";
+    std::cout << "[" << label << "] " << (pass ? "PASS" : "FAIL")
+              << "  (" << std::fixed << std::setprecision(2) << ms << " ms)\n";
+
+    if (print_output) {
+        print_matrix("  OUT", bo_out.map<float*>());
+    }
+
     return pass;
 }
 
@@ -105,6 +127,8 @@ int main(int argc, char* argv[]) {
 
     bool all_pass = true;
     float W[TOTAL], X[TOTAL];
+
+    std::cout << "\n=== Correctness tests ===\n";
 
     // Test 1: W = I  →  OUT = X
     {
@@ -147,6 +171,24 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < N; i++) W[i*N+i] = float(i + 1);
         for (int i = 0; i < TOTAL; i++) X[i] = 1.0f;
         all_pass &= run_test(device, krnl, "Diagonal weight", W, X);
+    }
+
+    std::cout << "\n=== Random dense matrix tests (with output) ===\n";
+
+    // Tests 6-8: Random dense matrices
+    std::mt19937 rng;
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+
+    const char* labels[] = {"Random-1 (seed=42)", "Random-2 (seed=123)", "Random-3 (seed=999)"};
+    unsigned int seeds[]  = {42, 123, 999};
+
+    for (int t = 0; t < 3; t++) {
+        rng.seed(seeds[t]);
+        for (int i = 0; i < TOTAL; i++) {
+            W[i] = dist(rng);
+            X[i] = dist(rng);
+        }
+        all_pass &= run_test(device, krnl, labels[t], W, X, /*print_output=*/true);
     }
 
     std::cout << "\n" << (all_pass ? "ALL TESTS PASSED" : "SOME TESTS FAILED") << "\n";
