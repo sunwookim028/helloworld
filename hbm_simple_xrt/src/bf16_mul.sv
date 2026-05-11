@@ -13,7 +13,7 @@ module bf16_mul (
 reg [7:0]  a_m, b_m, z_m;
 reg [9:0]  a_e, b_e, z_e;
 reg        a_s, b_s, z_s;
-reg [17:0] product;          // 8×8 mantissa product × 4 fits in 18 bits
+(* use_dsp = "yes" *) reg [17:0] product;  // force DSP48 for 8×8 multiply
 reg        guard_bit, round_bit, sticky;
 
 always @(*) begin
