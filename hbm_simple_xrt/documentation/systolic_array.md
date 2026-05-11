@@ -52,6 +52,7 @@ Bottom row output: `data_out[oc*DATA_WIDTH +: DATA_WIDTH] = pe_psum_out[(N-1)*N 
 
 ## Design Notes
 
-- Validated at N=4 (cross-check against minitpu's known-good behavior) and N=16.
+- Validated at N=4 (cross-check against minitpu's known-good behavior), N=16, and N=32.
 - `pe_enabled` tied to `1'b1` — all PEs always active.
 - No `automatic` variables; no unpacked array ports.
+- **Default N=32, DATA_WIDTH=16 (BF16)** — PEs instantiate `bf16_mul` and `bf16_add`.

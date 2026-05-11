@@ -1,5 +1,5 @@
 // ============================================================================
-// krnl_matmul.sv — Vitis RTL kernel: 16×16 FP32 matrix multiply over HBM
+// krnl_matmul.sv — Vitis RTL kernel: 32×32 BF16 matrix multiply over HBM
 //                  AXI4 burst DMA via krnl_vadd_rd_mst / krnl_vadd_wr_mst
 //
 // Computes OUT = X × W^T using the systolic array pipeline.
@@ -7,15 +7,15 @@
 // Architecture:
 //   krnl_vadd_ctrl       — AXI4-Lite slave, ap_ctrl_hs register map
 //   matmul_top           — loads W/X BRAMs, drives MXU, writes out_bram
-//   krnl_vadd_rd_mst ×2  — one 16-beat burst read: W (gmem0), X (gmem1)
-//   krnl_vadd_wr_mst ×1  — one 16-beat burst write: OUT (gmem2)
+//   krnl_vadd_rd_mst ×2  — one 32-beat burst read: W (gmem0), X (gmem1)
+//   krnl_vadd_wr_mst ×1  — one 32-beat burst write: OUT (gmem2)
 //   fifo4 ×3             — w_rd_fifo, x_rd_fifo, wr_fifo (depth 128)
 //
 // Sequencer FSM:
 //   IDLE → BURST_RD_W → BURST_RD_X → MT_START → MT_RUN → BURST_WR → DONE
 //
-// Each matrix is 16×16 FP32 = 1024 bytes = 16 × 512-bit words.
-// Replaces 48 single-beat AXI transactions with 3 burst transactions.
+// Each matrix is 32×32 BF16 = 2048 bytes = 32 × 512-bit words.
+// FIFO depth 128 > WORDS_PER_MATRIX=32; almost_full at 127 never triggers.
 // ============================================================================
 
 `timescale 1 ns / 1 ps
@@ -25,8 +25,8 @@ module krnl_matmul #(
     parameter integer C_S_AXI_CTRL_ADDR_WIDTH = 7,
     parameter integer C_M_AXI_DATA_WIDTH      = 512,
     parameter integer C_M_AXI_ADDR_WIDTH      = 64,
-    parameter integer N                       = 16,
-    parameter integer DATA_WIDTH              = 32
+    parameter integer N                       = 32,
+    parameter integer DATA_WIDTH              = 16
 )(
     input  wire ap_clk,
     input  wire ap_rst_n,
@@ -152,11 +152,11 @@ module krnl_matmul #(
     output wire                               m_axi_gmem2_rready
 );
 
-    localparam int ELEMS_PER_WORD   = C_M_AXI_DATA_WIDTH / DATA_WIDTH; // 16
+    localparam int ELEMS_PER_WORD   = C_M_AXI_DATA_WIDTH / DATA_WIDTH; // 32
     localparam int TOTAL_ELEMS      = N * N;                            // 1024
-    localparam int WORDS_PER_MATRIX = TOTAL_ELEMS / ELEMS_PER_WORD;    // 64
+    localparam int WORDS_PER_MATRIX = TOTAL_ELEMS / ELEMS_PER_WORD;    // 32
     // FIFO depth > WORDS_PER_MATRIX so almost_full (fires at DEPTH-1=127)
-    // never triggers during our 64-word bursts, preventing a deadlock on
+    // never triggers during our 32-word bursts, preventing a deadlock on
     // the final beat where the slave stalls waiting for RREADY.
     localparam int FIFO_DEPTH       = 128;
 
@@ -394,7 +394,7 @@ module krnl_matmul #(
     // =========================================================================
     // FIFO glue — bridge matmul_top's sequential memory port to preloaded FIFOs
     //
-    // W reads:  matmul_top addr in [addr_w_word, addr_w_word+63] → w_rd_fifo
+    // W reads:  matmul_top addr in [addr_w_word, addr_w_word+31] → w_rd_fifo
     // X reads:  otherwise                                        → x_rd_fifo
     // OUT writes: all → wr_fifo (burst write dispatched after mt_done)
     //

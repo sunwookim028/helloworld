@@ -1,16 +1,16 @@
 """
-Cocotb test suite for krnl_matmul — burst AXI4 kernel.
+Cocotb test suite for krnl_matmul — burst AXI4 kernel (32×32 BF16).
 
 Tests the complete RTL path:
   AXI4-Lite control → kernel trigger
-  AXI4 gmem0 burst slave → W matrix reads  (one 16-beat burst)
-  AXI4 gmem1 burst slave → X matrix reads  (one 16-beat burst)
-  AXI4 gmem2 burst slave → OUT matrix writes (one 16-beat burst)
-  Output verification against numpy reference
+  AXI4 gmem0 burst slave → W matrix reads  (one 32-beat burst)
+  AXI4 gmem1 burst slave → X matrix reads  (one 32-beat burst)
+  AXI4 gmem2 burst slave → OUT matrix writes (one 32-beat burst)
+  Output verification against numpy BF16 reference
 
 Memory layout (word-addressed, 512-bit words = 64 bytes each):
-  W   matrix: byte addr 0x0000  (word addr 0)
-  X   matrix: byte addr 0x1000  (word addr 64 = WORDS_PER_MATRIX)
+  W   matrix: byte addr 0x0000  (word addr 0,  32 words = 2048 bytes)
+  X   matrix: byte addr 0x1000  (word addr 64, 32 words — page-aligned)
   OUT matrix: byte addr 0x2000  (word addr 128)
 """
 
@@ -25,16 +25,16 @@ import numpy as np
 
 random.seed(0xABCD_1234)
 
-N              = 16
-DW             = 32
+N              = int(os.environ.get("KRNL_N", 32))
+DW             = 16   # BF16
 HBM_DW         = 512
-ELEMS_PER_WORD = HBM_DW // DW      # 16
+ELEMS_PER_WORD = HBM_DW // DW      # 32 BF16 elements per 512-bit word
 TOTAL_ELEMS    = N * N              # 1024
-WORDS_PER_MAT  = TOTAL_ELEMS // ELEMS_PER_WORD  # 64
+WORDS_PER_MAT  = TOTAL_ELEMS // ELEMS_PER_WORD  # 32
 
 # Byte addresses of each matrix (page-aligned, non-overlapping)
 BYTE_ADDR_W   = 0x0000
-BYTE_ADDR_X   = 0x1000   # page-aligned; matrix is 1024 bytes = 16 words × 64 bytes
+BYTE_ADDR_X   = 0x1000   # page-aligned; matrix is 32 words × 64 bytes = 2048 bytes
 BYTE_ADDR_OUT = 0x2000
 
 WORD_ADDR_W   = BYTE_ADDR_W   >> 6
@@ -54,14 +54,27 @@ REG_OUT_HI   = 0x24
 
 
 # =============================================================================
-# FP32 helpers
+# BF16 helpers
 # =============================================================================
-def f2b(v: float) -> int:
-    return struct.unpack(">I", struct.pack(">f", float(v)))[0]
+def float_to_bits(val: float) -> int:
+    """Float32 → BF16 bit pattern (upper 16 bits of float32)."""
+    bits32 = struct.unpack(">I", struct.pack(">f", float(val)))[0]
+    return (bits32 >> 16) & 0xFFFF
 
 
-def b2f(b: int) -> float:
-    return struct.unpack(">f", struct.pack(">I", int(b) & 0xFFFFFFFF))[0]
+def bits_to_float(bits: int) -> float:
+    """BF16 bit pattern → float32."""
+    bits32 = (int(bits) & 0xFFFF) << 16
+    return struct.unpack(">f", struct.pack(">I", bits32))[0]
+
+
+def bf16_ref(W: np.ndarray, X: np.ndarray) -> np.ndarray:
+    """Reference matmul using BF16-truncated inputs computed in float32."""
+    W_q = np.array([[bits_to_float(float_to_bits(W[i][j])) for j in range(N)]
+                     for i in range(N)], dtype=np.float32)
+    X_q = np.array([[bits_to_float(float_to_bits(X[i][j])) for j in range(N)]
+                     for i in range(N)], dtype=np.float32)
+    return (X_q @ W_q.T).astype(np.float32)
 
 
 # =============================================================================
@@ -74,7 +87,7 @@ def pack_matrix_into_mem(mat: np.ndarray, word_base: int, mem: dict):
         for i in range(ELEMS_PER_WORD):
             idx = w * ELEMS_PER_WORD + i
             v   = flat[idx] if idx < len(flat) else 0.0
-            word_val |= (f2b(v) & 0xFFFFFFFF) << (i * DW)
+            word_val |= (float_to_bits(v) & 0xFFFF) << (i * DW)
         mem[word_base + w] = word_val
 
 
@@ -83,7 +96,7 @@ def unpack_matrix_from_mem(word_base: int, mem: dict) -> np.ndarray:
     for w in range(WORDS_PER_MAT):
         word_val = mem.get(word_base + w, 0)
         for i in range(ELEMS_PER_WORD):
-            flat.append(b2f((word_val >> (i * DW)) & 0xFFFFFFFF))
+            flat.append(bits_to_float((word_val >> (i * DW)) & 0xFFFF))
     return np.array(flat[:TOTAL_ELEMS], dtype=np.float32).reshape(N, N)
 
 
@@ -130,9 +143,8 @@ async def axilite_read(dut, addr: int) -> int:
 # =============================================================================
 # AXI4 burst read slave (for gmem0 and gmem1)
 #
-# Handles ARLEN+1 R beats per transaction.  For our 64-word matrices with
-# page-aligned addresses the rd_mst issues exactly one 64-beat burst per
-# matrix, so this slave handles one AR transaction → 64 R beats → next AR.
+# Handles ARLEN+1 R beats per transaction.  For our 32-word matrices the
+# rd_mst issues exactly one 32-beat burst per matrix.
 # =============================================================================
 async def axi_rd_slave(dut, arvalid, arready, araddr, arlen,
                        rvalid, rready, rdata, rlast, rresp, mem: dict):
@@ -141,17 +153,15 @@ async def axi_rd_slave(dut, arvalid, arready, araddr, arlen,
     rlast.value   = 0
     rresp.value   = 0
     while True:
-        # AR channel: wait for ARVALID, accept, latch burst parameters
         arready.value = 1
         await RisingEdge(dut.ap_clk)
         while not int(arvalid.value):
             await RisingEdge(dut.ap_clk)
         byte_addr   = int(araddr.value)
-        burst_beats = int(arlen.value) + 1   # ARLEN+1 beats
+        burst_beats = int(arlen.value) + 1
         word_base   = byte_addr >> 6
         arready.value = 0
 
-        # R channel: send burst_beats beats, RLAST on final beat
         for beat in range(burst_beats):
             rdata.value  = mem.get(word_base + beat, 0)
             rlast.value  = 1 if beat == burst_beats - 1 else 0
@@ -165,9 +175,6 @@ async def axi_rd_slave(dut, arvalid, arready, araddr, arlen,
 
 # =============================================================================
 # AXI4 burst write slave (for gmem2)
-#
-# Handles AWLEN+1 W beats per transaction.  The wr_mst issues one 64-beat
-# burst for the output matrix.
 # =============================================================================
 async def axi_wr_slave(dut, awvalid, awready, awaddr, awlen,
                        wvalid, wready, wdata,
@@ -176,7 +183,6 @@ async def axi_wr_slave(dut, awvalid, awready, awaddr, awlen,
     wready.value  = 0
     bvalid.value  = 0
     while True:
-        # AW channel
         awready.value = 1
         await RisingEdge(dut.ap_clk)
         while not int(awvalid.value):
@@ -186,7 +192,6 @@ async def axi_wr_slave(dut, awvalid, awready, awaddr, awlen,
         word_base   = byte_addr >> 6
         awready.value = 0
 
-        # W channel: accept burst_beats beats
         wready.value = 1
         for beat in range(burst_beats):
             await RisingEdge(dut.ap_clk)
@@ -195,7 +200,6 @@ async def axi_wr_slave(dut, awvalid, awready, awaddr, awlen,
             mem[word_base + beat] = int(wdata.value)
         wready.value = 0
 
-        # B channel
         bvalid.value = 1
         await RisingEdge(dut.ap_clk)
         while not int(bready.value):
@@ -208,7 +212,6 @@ async def axi_wr_slave(dut, awvalid, awready, awaddr, awlen,
 # =============================================================================
 async def reset_dut(dut):
     dut.ap_rst_n.value = 0
-    # AXI-Lite defaults
     dut.s_axi_control_awvalid.value = 0
     dut.s_axi_control_wvalid.value  = 0
     dut.s_axi_control_bready.value  = 0
@@ -218,24 +221,20 @@ async def reset_dut(dut):
     dut.s_axi_control_wdata.value   = 0
     dut.s_axi_control_wstrb.value   = 0
     dut.s_axi_control_araddr.value  = 0
-    # AXI4 slave inputs (gmem0 — rd slave)
     dut.m_axi_gmem0_arready.value = 0
     dut.m_axi_gmem0_rvalid.value  = 0
     dut.m_axi_gmem0_rdata.value   = 0
     dut.m_axi_gmem0_rresp.value   = 0
     dut.m_axi_gmem0_rlast.value   = 0
-    # AXI4 slave inputs (gmem1 — rd slave)
     dut.m_axi_gmem1_arready.value = 0
     dut.m_axi_gmem1_rvalid.value  = 0
     dut.m_axi_gmem1_rdata.value   = 0
     dut.m_axi_gmem1_rresp.value   = 0
     dut.m_axi_gmem1_rlast.value   = 0
-    # AXI4 slave inputs (gmem2 — wr slave)
     dut.m_axi_gmem2_awready.value = 0
     dut.m_axi_gmem2_wready.value  = 0
     dut.m_axi_gmem2_bresp.value   = 0
     dut.m_axi_gmem2_bvalid.value  = 0
-    # Tie off unused gmem0/gmem1 write-channel inputs
     dut.m_axi_gmem0_awready.value = 0
     dut.m_axi_gmem0_wready.value  = 0
     dut.m_axi_gmem0_bresp.value   = 0
@@ -244,7 +243,6 @@ async def reset_dut(dut):
     dut.m_axi_gmem1_wready.value  = 0
     dut.m_axi_gmem1_bresp.value   = 0
     dut.m_axi_gmem1_bvalid.value  = 0
-    # Tie off unused gmem2 read-channel inputs
     dut.m_axi_gmem2_arready.value = 0
     dut.m_axi_gmem2_rvalid.value  = 0
     dut.m_axi_gmem2_rdata.value   = 0
@@ -311,15 +309,24 @@ async def run_kernel_matmul(dut, W: np.ndarray, X: np.ndarray, mem: dict) -> np.
     return unpack_matrix_from_mem(WORD_ADDR_OUT, mem)
 
 
-def assert_close(actual, expected, rtol=1e-4, atol=1e-5, label=""):
+def assert_close(actual, expected, rtol=0.05, atol=0.5, label=""):
     for i in range(N):
         for j in range(N):
             a, e = float(actual[i][j]), float(expected[i][j])
-            rel  = abs(a - e) / abs(e) if abs(e) > 1e-10 else abs(a - e)
-            if rel > rtol and abs(a - e) > atol:
-                raise AssertionError(
-                    f"{label}[{i}][{j}]: got {a:.6g}, expected {e:.6g} "
-                    f"(rel {rel:.2e})")
+            if abs(e) > 1e-6:
+                if abs(a - e) / abs(e) > rtol:
+                    raise AssertionError(
+                        f"{label}[{i}][{j}]: got {a:.6g}, expected {e:.6g} "
+                        f"(rel {abs(a-e)/abs(e):.2e})")
+            else:
+                if abs(a - e) > atol:
+                    raise AssertionError(
+                        f"{label}[{i}][{j}]: got {a:.6g}, expected {e:.6g} "
+                        f"(abs err {abs(a-e):.2e})")
+
+
+def small_x():
+    return (np.arange(TOTAL_ELEMS, dtype=np.float32) % 4 + 1).reshape(N, N)
 
 
 # =============================================================================
@@ -337,11 +344,10 @@ async def test_identity(dut):
     start_slaves(dut, mem)
 
     W = np.eye(N, dtype=np.float32)
-    X = np.arange(1, TOTAL_ELEMS + 1, dtype=np.float32).reshape(N, N)
+    X = small_x()
 
-    result   = await run_kernel_matmul(dut, W, X, mem)
-    expected = (X @ W.T).astype(np.float32)
-    assert_close(result, expected, label="[identity] ")
+    result = await run_kernel_matmul(dut, W, X, mem)
+    assert_close(result, bf16_ref(W, X), label="[identity] ")
     cocotb.log.info("PASS: identity")
 
 
@@ -356,17 +362,16 @@ async def test_zero_weight(dut):
     start_slaves(dut, mem)
 
     W = np.zeros((N, N), dtype=np.float32)
-    X = np.arange(1, TOTAL_ELEMS + 1, dtype=np.float32).reshape(N, N)
+    X = small_x()
 
-    result   = await run_kernel_matmul(dut, W, X, mem)
-    expected = np.zeros((N, N), dtype=np.float32)
-    assert_close(result, expected, label="[zero_w] ")
+    result = await run_kernel_matmul(dut, W, X, mem)
+    assert_close(result, np.zeros((N, N), dtype=np.float32), label="[zero_w] ")
     cocotb.log.info("PASS: zero weight")
 
 
 @cocotb.test()
 async def test_small_integers(dut):
-    """Small-integer W and X — exact in FP32."""
+    """Small-integer W and X — exact in BF16."""
     clock = Clock(dut.ap_clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
@@ -381,15 +386,14 @@ async def test_small_integers(dut):
             W[i][j] = float((i + 1) % 4)
             X[i][j] = float((j + 1) % 4)
 
-    result   = await run_kernel_matmul(dut, W, X, mem)
-    expected = (X @ W.T).astype(np.float32)
-    assert_close(result, expected, label="[small_int] ")
+    result = await run_kernel_matmul(dut, W, X, mem)
+    assert_close(result, bf16_ref(W, X), label="[small_int] ")
     cocotb.log.info("PASS: small integers")
 
 
 @cocotb.test()
 async def test_random(dut):
-    """Random small-integer matrices, 2 back-to-back runs."""
+    """Random small-integer matrices (-3..3), 2 back-to-back runs."""
     clock = Clock(dut.ap_clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
@@ -402,7 +406,6 @@ async def test_random(dut):
                      dtype=np.float32)
         X = np.array([[random.randint(-3, 3) for _ in range(N)] for _ in range(N)],
                      dtype=np.float32)
-        result   = await run_kernel_matmul(dut, W, X, mem)
-        expected = (X @ W.T).astype(np.float32)
-        assert_close(result, expected, rtol=1e-3, label=f"[rand_{case}] ")
+        result = await run_kernel_matmul(dut, W, X, mem)
+        assert_close(result, bf16_ref(W, X), label=f"[rand_{case}] ")
         cocotb.log.info(f"PASS: random case {case + 1}/2")

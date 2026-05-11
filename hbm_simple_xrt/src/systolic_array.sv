@@ -1,5 +1,5 @@
 // ============================================================================
-// systolic_array.sv — Parameterized N×N weight-stationary systolic array
+// systolic_array.sv — Parameterized N×N weight-stationary systolic array (BF16)
 //
 // Generalization of minitpu's flat 4×4 systolic.sv using generate blocks.
 // Same PE interface and signal flow, just parameterized for any N.
@@ -18,8 +18,8 @@
 `timescale 1ns/1ps
 
 module systolic_array #(
-    parameter int N = 16,
-    parameter int DATA_WIDTH = 32
+    parameter int N = 32,
+    parameter int DATA_WIDTH = 16
 )(
     input  logic clk,
     input  logic rst_n,

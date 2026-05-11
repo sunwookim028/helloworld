@@ -22,17 +22,18 @@ Directly tests the `systolic_array` module by driving the same weight-loading, s
 | 13| `test_lower_triangular`       | Lower triangular W (complementary accumulation)                   |
 | 14| `test_sparse_matrix`          | Only 4 corner elements nonzero (selective routing)                |
 | 15| `test_symmetric_weight`       | W = W^T so OUT = X × W (self-transpose invariance)               |
-| 16| `test_large_values`           | Powers of 2 up to 256×128 (wider FP32 dynamic range)             |
+| 16| `test_large_values`           | Powers of 2 (exact in BF16: W=256*I, X rows = 2^(i%8))          |
 | 17| `test_alternating_signs`      | Checkerboard +1/-1 in both W and X (sign cancellation stress)    |
 | 18| `test_single_row_nonzero`     | Only row 0 of X nonzero (zero propagation through other rows)    |
 | 19| `test_triple_back_to_back`    | Three consecutive matmuls without reset                           |
 
 ## Key Components
-### FP32 Helpers
-- `float_to_bits(val)` — Converts Python float to 32-bit IEEE-754 integer representation
-- `bits_to_float(bits)` — Converts 32-bit integer back to Python float
-- `pack_vector(values)` — Packs N 32-bit values into a single wide integer for flat packed ports
-- `unpack_value(packed, index)` — Extracts the index-th 32-bit element from a packed vector
+### BF16 Helpers
+- `float_to_bits(val)` — Converts Python float to 16-bit BF16 bit pattern (`bits32 >> 16`)
+- `bits_to_float(bits)` — Converts 16-bit BF16 pattern back to Python float (`bits << 16`)
+- `pack_vector(values)` — Packs N 16-bit BF16 patterns into a single wide integer for flat packed ports
+- `unpack_value(packed, index)` — Extracts the index-th 16-bit BF16 element from a packed vector
+- `bf16_mat(m)` — Rounds a float32 numpy matrix to BF16 precision (for reference computation)
 
 ### `reset_dut(dut)`
 Applies asynchronous reset for 2 cycles, then releases. Initializes all inputs to zero.
@@ -59,15 +60,16 @@ This function drives the exact same protocol as the MXU's S_RUN state, implement
 After each `RisingEdge(dut.clk)` + `Timer(1, "ns")` (to let combinational outputs settle), the function reads `valid_out` and `data_out`. For each column with valid output and `row_ptr[col] < N`, it stores the result and increments the pointer. Exits early when all columns have received N outputs.
 
 ### `assert_matrix_close(actual, expected, rtol, atol, label)`
-Element-wise comparison with relative tolerance (for nonzero expected values) and absolute tolerance (for near-zero values). Raises `AssertionError` with detailed position and error magnitude on mismatch.
+Element-wise comparison with relative tolerance (for nonzero expected values) and absolute tolerance (for near-zero values). Default `rtol=1e-3`, `atol=1e-4`. Raises `AssertionError` with detailed position and error magnitude on mismatch.
 
 ## Configuration
 | Variable | Source | Default | Description |
 |----------|--------|---------|-------------|
 | `N`      | `SYSTOLIC_N` env var | 32 | Array dimension |
-| `DW`     | Hardcoded | 32 | Data width |
+| `DW`     | Hardcoded | 16 | Data width (BF16) |
 
 ## Design Notes
 - **Sequential drive+capture pattern:** The `Timer(1, "ns")` after each `RisingEdge` is critical — it allows the combinational `data_out` and `valid_out` to settle after the clock edge before sampling.
 - **Deterministic random:** `random.seed(0xBEEF_CAFE)` ensures reproducible test cases across runs.
-- **All tests use `expected = (X @ W.T).astype(np.float32)`** as the reference, matching the systolic array's mathematical operation.
+- **Reference uses `bf16_mat()`:** `expected = bf16_mat(X @ W.T)` truncates both inputs to BF16 precision before computing the reference, matching what the hardware will produce.
+- **Small integer test data:** Values in [−3, 3] keep maximum sums (32 × 9 = 288) within exact BF16 range.

@@ -10,14 +10,14 @@ Tests the complete `krnl_matmul` Vitis kernel at the AXI protocol level. Models 
 |---|------|-----------------|
 | 1 | `test_identity` | W=I → OUT=X; full burst AXI4 round-trip + kernel control |
 | 2 | `test_zero_weight` | W=0 → OUT=0; FIFOs and BRAMs cleared between runs |
-| 3 | `test_small_integers` | Structured integer patterns; exact FP32 |
+| 3 | `test_small_integers` | Structured integer patterns; exact BF16 |
 | 4 | `test_random` | Two back-to-back random matmuls without reset |
 
 ## Memory Layout
 
 ```
-gmem0 (W):   byte 0x0000 → word 0   (16 words × 64 bytes = 1024 bytes)
-gmem1 (X):   byte 0x1000 → word 64
+gmem0 (W):   byte 0x0000 → word 0    (32 words × 64 bytes = 2048 bytes)
+gmem1 (X):   byte 0x1000 → word 64   (page-aligned; 2048 bytes gap after W)
 gmem2 (OUT): byte 0x2000 → word 128
 ```
 
@@ -31,7 +31,7 @@ Handles the burst read pattern issued by `krnl_vadd_rd_mst`:
 2. Reads `ARLEN` from the DUT port → sends `ARLEN+1` R beats
 3. Asserts RLAST on the final beat; loops to accept the next AR transaction
 
-For page-aligned addresses, rd_mst issues exactly one 16-beat burst (ARLEN=15) per matrix.
+For page-aligned N=32 BF16 matrices, rd_mst issues exactly one 32-beat burst (ARLEN=31) per matrix.
 
 ### AXI4 Burst Write Slave (`axi_wr_slave`)
 Handles the burst write pattern issued by `krnl_vadd_wr_mst`:
@@ -65,7 +65,7 @@ REG_OUT_HI = 0x24   # OUT byte address [63:32]
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `N` | 16 | Matrix dimension |
+| `N` | 32 | Matrix dimension |
 | `TIMEOUT_CYCLES` | 500,000 | Max cycles to wait for ap_done |
 | W base | 0x0000 | Byte address of W in gmem0 |
 | X base | 0x1000 | Byte address of X in gmem1 |
@@ -73,8 +73,9 @@ REG_OUT_HI = 0x24   # OUT byte address [63:32]
 
 ## Design Notes
 
-- **Burst protocol**: slaves read `arlen`/`awlen` from the DUT and loop for exactly that many beats. For N=16 with page-aligned addresses, rd_mst always issues ARLEN=15 (16 beats = one full matrix) per transaction.
+- **Burst protocol**: slaves read `arlen`/`awlen` from the DUT and loop for exactly that many beats. For N=32 BF16 with page-aligned addresses, rd_mst always issues ARLEN=31 (32 beats = one full matrix) per transaction.
 - **Three concurrent slaves**: started with `cocotb.start_soon()` before the kernel runs, looping independently.
 - **Single shared dict**: gmem0, gmem1, gmem2 share `mem` keyed by word address. Non-overlapping base addresses (word 0, 64, 128) prevent aliasing.
 - **ap_done is COR**: `krnl_vadd_ctrl` clears `ap_done` when the host reads REG_CTRL. The test polls until bit 1 is set.
 - **TIMEOUT sizing**: 500,000 cycles is sufficient for 3 burst transactions + systolic array pipeline + cocotb AXI-Lite polling overhead.
+- **BF16 reference**: `bf16_ref(W, X)` truncates inputs to BF16 precision before computing the float32 reference. `rtol=0.05` for the AXI-level tests.

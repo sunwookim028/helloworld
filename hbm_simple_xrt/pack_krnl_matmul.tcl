@@ -1,7 +1,7 @@
 # ==============================================================================
 # pack_krnl_matmul.tcl — Package krnl_matmul RTL as a Vitis .xo kernel object
 #
-# Packages the 16x16 systolic array matmul kernel including all RTL sources.
+# Packages the 32x32 BF16 systolic array matmul kernel including all RTL sources.
 #
 # Usage (from Makefile):
 #   vivado -mode batch -source pack_krnl_matmul.tcl -notrace
@@ -22,8 +22,8 @@ set rtl_files [list \
     "src/mxu.sv" \
     "src/systolic_array.sv" \
     "src/pe.sv" \
-    "src/fp32_add.sv" \
-    "src/fp32_mul.sv" \
+    "src/bf16_add.sv" \
+    "src/bf16_mul.sv" \
     "src/fifo4.sv" \
 ]
 

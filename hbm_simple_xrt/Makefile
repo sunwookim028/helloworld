@@ -35,7 +35,7 @@ build: krnl_matmul.hw.xclbin
 RTL_SRCS := src/krnl_matmul.sv src/krnl_vadd_ctrl.v \
             src/krnl_vadd_rd_mst.v src/krnl_vadd_wr_mst.v \
             src/matmul_top.sv src/mxu.sv src/systolic_array.sv \
-            src/pe.sv src/fp32_add.sv src/fp32_mul.sv \
+            src/pe.sv src/bf16_add.sv src/bf16_mul.sv \
             src/fifo4.sv
 
 # ── Targets ───────────────────────────────────────────────────────────────────

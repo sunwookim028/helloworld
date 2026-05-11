@@ -25,7 +25,7 @@ Autonomous matrix multiply accelerator. Given base addresses, it loads W and X f
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `N` | 32 | Matrix dimension (N×N) |
-| `DATA_WIDTH` | 32 | Element width (FP32) |
+| `DATA_WIDTH` | 16 | Element width (BF16) |
 | `BANKING_FACTOR` | 1 | Elements per memory transaction |
 | `ADDRESS_WIDTH` | 16 | Memory address width |
 | `MEM_LATENCY` | 2 | Cycles to wait for memory response |
@@ -61,13 +61,13 @@ Both `row_ptr` and `out_matrix` cleared on reset and on `start`.
 
 | Buffer | Size | Description |
 |--------|------|-------------|
-| `weight_matrix` | N²×32b | W loaded from memory |
-| `x_matrix` | N²×32b | X loaded from memory |
-| `out_matrix` | N²×32b | Results captured, then stored |
+| `weight_matrix` | N²×16b | W loaded from memory |
+| `x_matrix` | N²×16b | X loaded from memory |
+| `out_matrix` | N²×16b | Results captured, then stored |
 
 ## Design Notes
 
 - **MEM_LATENCY=2**: Default changed from 1 to 2 because the cocotb memory driver runs in the ReadWrite region (after Verilog `always_ff` Active region). Latency 1 would sample stale data.
-- **BANKING_FACTOR=1**: Each transaction is one 32-bit element. matmul_top uses this as a BRAM interface.
+- **BANKING_FACTOR=1**: Each transaction is one 16-bit BF16 element. matmul_top uses this as a BRAM interface.
 - **Parameterized loops**: Original minitpu used hardcoded `if (phase_counter == 0)` per phase. This version uses `for` loops scaling to any N.
 - **Debug generate block**: `OUT_DEBUG[i].out_elem = out_matrix[i]` makes outputs visible in waveform viewers.

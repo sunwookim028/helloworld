@@ -1,6 +1,6 @@
 # pe.sv — Processing Element (MAC Unit)
 **Path:** `src/pe.sv`
-**Origin:** Copied from `minitpu/tpu/src/compute_tile/pe.sv`
+**Origin:** Adapted from `minitpu/tpu/src/compute_tile/pe.sv` (FP32 → BF16)
 
 ## Purpose
 A single PE for the weight-stationary systolic array. Computes `psum_out = (input × weight_active) + psum_in`, pipelines activations east, weights/psums south, and propagates valid/switch signals.
@@ -23,20 +23,20 @@ A single PE for the weight-stationary systolic array. Computes `psum_out = (inpu
 | `pe_valid_out` | out | 1 | Valid to east |
 | `pe_switch_out` | out | 1 | Switch to south |
 
-**Parameter:** `DATA_WIDTH` (default 32)
+**Parameter:** `DATA_WIDTH` (default 16)
 
 ## Internal Architecture
 ```
           pe_weight_in / pe_psum_in
                   │
 pe_input_in ──►┌──▼───────┐──► pe_input_out
-pe_valid_in ──►│  fp32_mul│──► pe_valid_out
-pe_switch_in──►│  fp32_add│──► pe_switch_out
+pe_valid_in ──►│  bf16_mul│──► pe_valid_out
+pe_switch_in──►│  bf16_add│──► pe_switch_out
                └──────────┘
                   │
           pe_psum_out / pe_weight_out
 ```
-**Submodules:** `fp32_mul` (combinational: `mult_out = input × weight_active`), `fp32_add` (combinational: `mac_out = mult_out + psum_in`)
+**Submodules:** `bf16_mul` (combinational: `mult_out = input × weight_active`), `bf16_add` (combinational: `mac_out = mult_out + psum_in`)
 
 **Registers:** `weight_reg_active` (foreground, used for MAC), `weight_reg_inactive` (background, loaded during compute)
 

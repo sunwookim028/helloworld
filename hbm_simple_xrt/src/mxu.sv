@@ -1,5 +1,5 @@
 // ============================================================================
-// mxu.sv — Parameterized Matrix Unit (systolic array wrapper)
+// mxu.sv — Parameterized Matrix Unit (systolic array wrapper, BF16)
 //
 // Generalization of minitpu's 4×4 mxu.sv to arbitrary N using for-loops
 // in the FSM instead of hardcoded if-blocks.
@@ -16,8 +16,8 @@
 `timescale 1ns/1ps
 
 module mxu #(
-    parameter int N             = 16,
-    parameter int DATA_WIDTH    = 32,
+    parameter int N             = 32,
+    parameter int DATA_WIDTH    = 16,
     parameter int BANKING_FACTOR = 1,
     parameter int ADDRESS_WIDTH = 16,
     parameter int MEM_LATENCY   = 2

@@ -1,10 +1,10 @@
-// pe.sv — Single processing element (MAC) for systolic array
-// Copied from minitpu/tpu/src/compute_tile/pe.sv
+// pe.sv — Single processing element (MAC) for systolic array, BF16
+// Adapted from minitpu/tpu/src/compute_tile/pe.sv
 
 `timescale 1ns/1ps
 
 module pe #(
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 16
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -30,35 +30,25 @@ module pe #(
     output logic                  pe_switch_out
 );
 
-    // Internal data paths (FP32)
+    // Internal data paths (BF16)
     logic [DATA_WIDTH-1:0] mult_out;
     logic [DATA_WIDTH-1:0] mac_out;
     logic [DATA_WIDTH-1:0] weight_reg_active;    // foreground weight register
     logic [DATA_WIDTH-1:0] weight_reg_inactive;  // background weight register
 
     // ------------------------------------------------------------------------
-    // FP32 multiply: mult_out = pe_input_in * weight_reg_active
+    // BF16 multiply: mult_out = pe_input_in * weight_reg_active
     // ------------------------------------------------------------------------
-    fp32_mul #(
-        .FORMAT   ("FP32"),
-        .INT_BITS (16),
-        .FRAC_BITS(16),
-        .WIDTH    (DATA_WIDTH)
-    ) mult (
+    bf16_mul mult (
         .a      ( pe_input_in        ),
         .b      ( weight_reg_active  ),
         .result ( mult_out           )
     );
 
     // ------------------------------------------------------------------------
-    // FP32 add: mac_out = mult_out + pe_psum_in
+    // BF16 add: mac_out = mult_out + pe_psum_in
     // ------------------------------------------------------------------------
-    fp32_add #(
-        .FORMAT   ("FP32"),
-        .INT_BITS (16),
-        .FRAC_BITS(16),
-        .WIDTH    (DATA_WIDTH)
-    ) adder (
+    bf16_add adder (
         .a      ( mult_out     ),
         .b      ( pe_psum_in   ),
         .result ( mac_out      )
