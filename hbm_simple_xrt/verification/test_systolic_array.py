@@ -7,7 +7,7 @@ that the MXU FSM uses (weight loading, switch, X input feeding).
 The systolic array computes: OUT = X * W^T
 
 Test values use small integers so BF16 products and accumulated sums
-are representable exactly (max sum for N=32 with values ≤3 is 288,
+are representable exactly (max sum for N=16 with values ≤3 is 144,
 which is exactly representable in BF16).
 """
 
@@ -22,7 +22,7 @@ import numpy as np
 
 random.seed(0xBEEF_CAFE)
 
-N = int(os.environ.get("SYSTOLIC_N", 32))
+N = int(os.environ.get("SYSTOLIC_N", 16))
 DW = 16  # DATA_WIDTH (BF16)
 
 

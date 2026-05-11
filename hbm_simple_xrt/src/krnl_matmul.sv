@@ -1,5 +1,5 @@
 // ============================================================================
-// krnl_matmul.sv — Vitis RTL kernel: 32×32 BF16 matrix multiply over HBM
+// krnl_matmul.sv — Vitis RTL kernel: 16×16 BF16 matrix multiply over HBM
 //                  AXI4 burst DMA via krnl_vadd_rd_mst / krnl_vadd_wr_mst
 //
 // Computes OUT = X × W^T using the systolic array pipeline.
@@ -7,15 +7,15 @@
 // Architecture:
 //   krnl_vadd_ctrl       — AXI4-Lite slave, ap_ctrl_hs register map
 //   matmul_top           — loads W/X BRAMs, drives MXU, writes out_bram
-//   krnl_vadd_rd_mst ×2  — one 32-beat burst read: W (gmem0), X (gmem1)
-//   krnl_vadd_wr_mst ×1  — one 32-beat burst write: OUT (gmem2)
+//   krnl_vadd_rd_mst ×2  — one 8-beat burst read: W (gmem0), X (gmem1)
+//   krnl_vadd_wr_mst ×1  — one 8-beat burst write: OUT (gmem2)
 //   fifo4 ×3             — w_rd_fifo, x_rd_fifo, wr_fifo (depth 128)
 //
 // Sequencer FSM:
 //   IDLE → BURST_RD_W → BURST_RD_X → MT_START → MT_RUN → BURST_WR → DONE
 //
-// Each matrix is 32×32 BF16 = 2048 bytes = 32 × 512-bit words.
-// FIFO depth 128 > WORDS_PER_MATRIX=32; almost_full at 127 never triggers.
+// Each matrix is 16×16 BF16 = 512 bytes = 8 × 512-bit words.
+// FIFO depth 128 > WORDS_PER_MATRIX=8; almost_full at 127 never triggers.
 // ============================================================================
 
 `timescale 1 ns / 1 ps
@@ -25,7 +25,7 @@ module krnl_matmul #(
     parameter integer C_S_AXI_CTRL_ADDR_WIDTH = 7,
     parameter integer C_M_AXI_DATA_WIDTH      = 512,
     parameter integer C_M_AXI_ADDR_WIDTH      = 64,
-    parameter integer N                       = 32,
+    parameter integer N                       = 16,
     parameter integer DATA_WIDTH              = 16
 )(
     input  wire ap_clk,
@@ -153,7 +153,7 @@ module krnl_matmul #(
 );
 
     localparam int ELEMS_PER_WORD   = C_M_AXI_DATA_WIDTH / DATA_WIDTH; // 32
-    localparam int TOTAL_ELEMS      = N * N;                            // 1024
+    localparam int TOTAL_ELEMS      = N * N;                            // 256
     localparam int WORDS_PER_MATRIX = TOTAL_ELEMS / ELEMS_PER_WORD;    // 32
     // FIFO depth > WORDS_PER_MATRIX so almost_full (fires at DEPTH-1=127)
     // never triggers during our 32-word bursts, preventing a deadlock on

@@ -1,16 +1,16 @@
 """
-Cocotb test suite for krnl_matmul — burst AXI4 kernel (32×32 BF16).
+Cocotb test suite for krnl_matmul — burst AXI4 kernel (16×16 BF16).
 
 Tests the complete RTL path:
   AXI4-Lite control → kernel trigger
-  AXI4 gmem0 burst slave → W matrix reads  (one 32-beat burst)
-  AXI4 gmem1 burst slave → X matrix reads  (one 32-beat burst)
-  AXI4 gmem2 burst slave → OUT matrix writes (one 32-beat burst)
+  AXI4 gmem0 burst slave → W matrix reads  (one 8-beat burst)
+  AXI4 gmem1 burst slave → X matrix reads  (one 8-beat burst)
+  AXI4 gmem2 burst slave → OUT matrix writes (one 8-beat burst)
   Output verification against numpy BF16 reference
 
 Memory layout (word-addressed, 512-bit words = 64 bytes each):
-  W   matrix: byte addr 0x0000  (word addr 0,  32 words = 2048 bytes)
-  X   matrix: byte addr 0x1000  (word addr 64, 32 words — page-aligned)
+  W   matrix: byte addr 0x0000  (word addr 0,  8 words = 512 bytes)
+  X   matrix: byte addr 0x1000  (word addr 64, 8 words — page-aligned)
   OUT matrix: byte addr 0x2000  (word addr 128)
 """
 
@@ -25,16 +25,16 @@ import numpy as np
 
 random.seed(0xABCD_1234)
 
-N              = int(os.environ.get("KRNL_N", 32))
+N              = int(os.environ.get("KRNL_N", 16))
 DW             = 16   # BF16
 HBM_DW         = 512
 ELEMS_PER_WORD = HBM_DW // DW      # 32 BF16 elements per 512-bit word
-TOTAL_ELEMS    = N * N              # 1024
-WORDS_PER_MAT  = TOTAL_ELEMS // ELEMS_PER_WORD  # 32
+TOTAL_ELEMS    = N * N              # 256
+WORDS_PER_MAT  = TOTAL_ELEMS // ELEMS_PER_WORD  # 8
 
 # Byte addresses of each matrix (page-aligned, non-overlapping)
 BYTE_ADDR_W   = 0x0000
-BYTE_ADDR_X   = 0x1000   # page-aligned; matrix is 32 words × 64 bytes = 2048 bytes
+BYTE_ADDR_X   = 0x1000   # page-aligned; matrix is 8 words × 64 bytes = 512 bytes
 BYTE_ADDR_OUT = 0x2000
 
 WORD_ADDR_W   = BYTE_ADDR_W   >> 6

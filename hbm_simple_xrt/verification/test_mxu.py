@@ -19,12 +19,12 @@ import numpy as np
 
 random.seed(0xDEAD_BEEF)
 
-N = int(os.environ.get("MXU_N", 32))
+N = int(os.environ.get("MXU_N", 16))
 DW = 16  # DATA_WIDTH (BF16)
 
 BASE_ADDR_W   = 0x0000
-BASE_ADDR_X   = 0x0400   # N*N=1024=0x400 for N=32: W fills 0x0000-0x03FF exactly
-BASE_ADDR_OUT = 0x0800
+BASE_ADDR_X   = N * N        # N*N=256=0x100 for N=16: W fills 0x0000-0x00FF exactly
+BASE_ADDR_OUT = 2 * N * N
 TIMEOUT_CYCLES = 200000
 
 

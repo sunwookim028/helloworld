@@ -1,5 +1,5 @@
 // ============================================================================
-// matmul_top.sv — HBM-width integration wrapper for MXU (32×32 BF16)
+// matmul_top.sv — HBM-width integration wrapper for MXU (16×16 BF16)
 //
 // Bridges a 512-bit wide memory interface (modelling HBM) to the MXU's
 // 16-bit (BF16) element memory port via internal BRAMs.
@@ -21,7 +21,7 @@
 `timescale 1ns/1ps
 
 module matmul_top #(
-    parameter int N               = 32,
+    parameter int N               = 16,
     parameter int DATA_WIDTH      = 16,
     parameter int HBM_DATA_WIDTH  = 512,
     parameter int ADDRESS_WIDTH   = 32
@@ -55,11 +55,11 @@ module matmul_top #(
     localparam int WORDS_PER_MATRIX = (TOTAL_ELEMS + ELEMS_PER_WORD - 1) / ELEMS_PER_WORD;
     localparam int WORD_IDX_BITS    = $clog2(WORDS_PER_MATRIX + 1);
 
-    // MXU address space: W at 0x0000, X at 0x0400, OUT at 0x0800
-    // For N=32: N*N=1024=0x400, so W fills 0x0000-0x03FF, X fills 0x0400-0x07FF exactly.
+    // MXU address space: W at 0x0000, X at N*N, OUT at 2*N*N
+    // For N=16: N*N=256=0x100, so W fills 0x0000-0x00FF, X fills 0x0100-0x01FF exactly.
     localparam logic [15:0] MXU_BASE_W   = 16'h0000;
-    localparam logic [15:0] MXU_BASE_X   = 16'h0400;
-    localparam logic [15:0] MXU_BASE_OUT = 16'h0800;
+    localparam logic [15:0] MXU_BASE_X   = N * N;
+    localparam logic [15:0] MXU_BASE_OUT = 2 * N * N;
 
     // =========================================================================
     // Internal BRAMs (register arrays)

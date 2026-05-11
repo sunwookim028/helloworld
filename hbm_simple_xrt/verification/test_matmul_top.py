@@ -1,5 +1,5 @@
 """
-Cocotb test suite for matmul_top — HBM-width integration wrapper (32×32 BF16).
+Cocotb test suite for matmul_top — HBM-width integration wrapper (16×16 BF16).
 
 Tests the full pipeline:
   1. Load W from 512-bit "HBM" memory into internal w_bram  (LOAD_W)
@@ -9,7 +9,7 @@ Tests the full pipeline:
 
 HBM memory model: dict of {word_addr: 512-bit Python int}
 Each 512-bit word holds ELEMS_PER_WORD = HBM_DATA_WIDTH / DATA_WIDTH elements.
-  N=32, DW=16 → ELEMS_PER_WORD=32, WORDS_PER_MATRIX=32
+  N=16, DW=16 → ELEMS_PER_WORD=32, WORDS_PER_MATRIX=8
 """
 
 import os
@@ -23,7 +23,7 @@ import numpy as np
 
 random.seed(0xCAFE_F00D)
 
-N              = int(os.environ.get("MATMUL_N", 32))
+N              = int(os.environ.get("MATMUL_N", 16))
 DW             = 16   # DATA_WIDTH (BF16)
 HBM_DW         = 512
 ELEMS_PER_WORD = HBM_DW // DW          # 32 BF16 elements per 512-bit word

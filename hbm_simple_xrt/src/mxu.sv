@@ -16,7 +16,7 @@
 `timescale 1ns/1ps
 
 module mxu #(
-    parameter int N             = 32,
+    parameter int N             = 16,
     parameter int DATA_WIDTH    = 16,
     parameter int BANKING_FACTOR = 1,
     parameter int ADDRESS_WIDTH = 16,
