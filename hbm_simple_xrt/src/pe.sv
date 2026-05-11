@@ -32,9 +32,11 @@ module pe #(
 
     // Internal data paths (BF16)
     logic [DATA_WIDTH-1:0] mult_out;
+    logic [DATA_WIDTH-1:0] mul_out_reg;          // pipeline register: mul → add
     logic [DATA_WIDTH-1:0] mac_out;
     logic [DATA_WIDTH-1:0] weight_reg_active;    // foreground weight register
     logic [DATA_WIDTH-1:0] weight_reg_inactive;  // background weight register
+    logic                  valid_pipe;            // valid delayed 1 cycle to match pipeline
 
     // ------------------------------------------------------------------------
     // BF16 multiply: mult_out = pe_input_in * weight_reg_active
@@ -46,10 +48,12 @@ module pe #(
     );
 
     // ------------------------------------------------------------------------
-    // BF16 add: mac_out = mult_out + pe_psum_in
+    // BF16 add: mac_out = mul_out_reg + pe_psum_in
+    // mul_out_reg is the registered mul result; pe_psum_in arrives 1 cycle
+    // later from above (correct per systolic schedule), so inputs are aligned.
     // ------------------------------------------------------------------------
     bf16_add adder (
-        .a      ( mult_out     ),
+        .a      ( mul_out_reg  ),
         .b      ( pe_psum_in   ),
         .result ( mac_out      )
     );
@@ -66,6 +70,8 @@ module pe #(
             pe_switch_out       <= 1'b0;
             weight_reg_active   <= '0;
             weight_reg_inactive <= '0;
+            mul_out_reg         <= '0;
+            valid_pipe          <= 1'b0;
         end
         else if (!pe_enabled) begin
             pe_input_out        <= '0;
@@ -75,10 +81,16 @@ module pe #(
             pe_switch_out       <= 1'b0;
             weight_reg_active   <= '0;
             weight_reg_inactive <= '0;
+            mul_out_reg         <= '0;
+            valid_pipe          <= 1'b0;
         end
         else begin
+            // Stage 1 pipeline register (always runs)
+            mul_out_reg <= mult_out;
+            valid_pipe  <= pe_valid_in;
+
             // Pass-through control signals
-            pe_valid_out  <= pe_valid_in;
+            pe_valid_out  <= valid_pipe;   // now 2-cycle delay: pe_valid_in → valid_pipe → pe_valid_out
             pe_switch_out <= pe_switch_in;
 
             // Weight register updates
@@ -100,10 +112,18 @@ module pe #(
                 end
             end
 
-            // Data path: MAC + propagate input east
+            // East propagation: 1-cycle delay (unchanged — keeps systolic schedule correct)
             if (pe_valid_in) begin
                 pe_input_out <= pe_input_in;
-                pe_psum_out  <= mac_out;
+            end else begin
+                pe_input_out <= '0;
+            end
+
+            // South propagation: 2-cycle path (mul reg → add combo → psum reg)
+            // valid_pipe gates stage 2; psum from above arrives 1 cycle late per
+            // systolic schedule, so it aligns with mul_out_reg here.
+            if (valid_pipe) begin
+                pe_psum_out <= mac_out;
             end
             else begin
                 pe_valid_out <= 1'b0;
