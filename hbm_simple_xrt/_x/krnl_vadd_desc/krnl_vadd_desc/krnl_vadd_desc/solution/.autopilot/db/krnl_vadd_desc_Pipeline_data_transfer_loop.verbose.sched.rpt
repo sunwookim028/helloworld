@@ -1,0 +1,160 @@
+
+
+================================================================
+== Vitis HLS Report for 'krnl_vadd_desc_Pipeline_data_transfer_loop'
+================================================================
+* Date:           Tue Feb 17 16:20:25 2026
+
+* Version:        2023.2 (Build 4023990 on Oct 11 2023)
+* Project:        krnl_vadd_desc
+* Solution:       solution (Vitis Kernel Flow Target)
+* Product family: virtexuplusHBM
+* Target device:  xcu280-fsvh2892-2L-e
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  3.33 ns|  2.433 ns|     0.90 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+-----------+----------+-----+-------+---------+
+    |  Latency (cycles) |  Latency (absolute)  |   Interval  | Pipeline|
+    |   min   |   max   |    min    |    max   | min |  max  |   Type  |
+    +---------+---------+-----------+----------+-----+-------+---------+
+    |       19|    65539|  63.327 ns|  0.218 ms|   19|  65539|       no|
+    +---------+---------+-----------+----------+-----+-------+---------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        +----------------------+---------+---------+----------+-----------+-----------+------------+----------+
+        |                      |  Latency (cycles) | Iteration|  Initiation Interval  |    Trip    |          |
+        |       Loop Name      |   min   |   max   |  Latency |  achieved |   target  |    Count   | Pipelined|
+        +----------------------+---------+---------+----------+-----------+-----------+------------+----------+
+        |- data_transfer_loop  |       17|    65537|         3|          1|          1|  16 ~ 65536|       yes|
+        +----------------------+---------+---------+----------+-----------+-----------+------------+----------+
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 1
+IsPipeline: 0
+IsRtlPipelined: 0
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 1, depth = 3
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 3
+* Pipeline : 1
+  Pipeline-0 : II = 1, D = 3, States = { 1 2 3 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 3 
+3 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 1.61>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%i = alloca i32 1" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 6 'alloca' 'i' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%sext_ln114_1_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %sext_ln114_1"   --->   Operation 7 'read' 'sext_ln114_1_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%sext_ln114_read = read i58 @_ssdm_op_Read.ap_auto.i58, i58 %sext_ln114"   --->   Operation 8 'read' 'sext_ln114_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%num_words_read = read i26 @_ssdm_op_Read.ap_auto.i26, i26 %num_words"   --->   Operation 9 'read' 'num_words_read' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%sext_ln114_1_cast = sext i58 %sext_ln114_1_read"   --->   Operation 10 'sext' 'sext_ln114_1_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%sext_ln114_cast = sext i58 %sext_ln114_read"   --->   Operation 11 'sext' 'sext_ln114_cast' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%specinterface_ln0 = specinterface void @_ssdm_op_SpecInterface, i512 %gmem2, void @empty_8, i32 0, i32 0, void @empty_9, i32 64, i32 0, void @empty_4, void @empty_0, void @empty_9, i32 16, i32 16, i32 16, i32 16, void @empty_9, void @empty_9, i32 4294967295, i32 0"   --->   Operation 12 'specinterface' 'specinterface_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%specinterface_ln0 = specinterface void @_ssdm_op_SpecInterface, i512 %gmem0, void @empty_8, i32 0, i32 0, void @empty_9, i32 64, i32 0, void @empty_1, void @empty_0, void @empty_9, i32 16, i32 16, i32 16, i32 16, void @empty_9, void @empty_9, i32 4294967295, i32 0"   --->   Operation 13 'specinterface' 'specinterface_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 14 [1/1] (0.38ns)   --->   "%store_ln114 = store i26 0, i26 %i" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 14 'store' 'store_ln114' <Predicate = true> <Delay = 0.38>
+ST_1 : Operation 15 [1/1] (0.00ns)   --->   "%br_ln0 = br void %for.inc"   --->   Operation 15 'br' 'br_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 16 [1/1] (0.00ns)   --->   "%i_1 = load i26 %i" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 16 'load' 'i_1' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 17 [1/1] (0.00ns)   --->   "%specbitsmap_ln0 = specbitsmap void @_ssdm_op_SpecBitsMap, i512 %gmem2"   --->   Operation 17 'specbitsmap' 'specbitsmap_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 18 [1/1] (0.00ns)   --->   "%specbitsmap_ln0 = specbitsmap void @_ssdm_op_SpecBitsMap, i512 %gmem0"   --->   Operation 18 'specbitsmap' 'specbitsmap_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 19 [1/1] (0.84ns)   --->   "%icmp_ln114 = icmp_eq  i26 %i_1, i26 %num_words_read" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 19 'icmp' 'icmp_ln114' <Predicate = true> <Delay = 0.84> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.84> <FuncUnit> <Opcode : 'icmp'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 20 [1/1] (0.84ns)   --->   "%add_ln114 = add i26 %i_1, i26 1" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 20 'add' 'add_ln114' <Predicate = true> <Delay = 0.84> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.84> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 21 [1/1] (0.00ns)   --->   "%br_ln114 = br i1 %icmp_ln114, void %for.inc.split, void %for.end.loopexit.exitStub" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 21 'br' 'br_ln114' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 22 [1/1] (0.38ns)   --->   "%store_ln114 = store i26 %add_ln114, i26 %i" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 22 'store' 'store_ln114' <Predicate = (!icmp_ln114)> <Delay = 0.38>
+
+State 2 <SV = 1> <Delay = 2.43>
+ST_2 : Operation 23 [1/1] (0.00ns)   --->   "%gmem0_addr = getelementptr i512 %gmem0, i64 %sext_ln114_cast" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 23 'getelementptr' 'gmem0_addr' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 24 [1/1] (2.43ns)   --->   "%gmem0_addr_read = read i512 @_ssdm_op_Read.m_axi.p1i512, i512 %gmem0_addr" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122]   --->   Operation 24 'read' 'gmem0_addr_read' <Predicate = true> <Delay = 2.43> <CoreInst = "m_axi">   --->   Core 121 'm_axi' <Latency = 0> <II = 1> <Delay = 1.00> <Adapter> <Opcode : 'read' 'write' 'readreq' 'writereq' 'writeresp'>
+ST_2 : Operation 31 [1/1] (0.00ns)   --->   "%ret_ln0 = ret"   --->   Operation 31 'ret' 'ret_ln0' <Predicate = (icmp_ln114)> <Delay = 0.00>
+
+State 3 <SV = 2> <Delay = 2.43>
+ST_3 : Operation 25 [1/1] (0.00ns)   --->   "%gmem2_addr = getelementptr i512 %gmem2, i64 %sext_ln114_1_cast" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 25 'getelementptr' 'gmem2_addr' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 26 [1/1] (0.00ns)   --->   "%specpipeline_ln115 = specpipeline void @_ssdm_op_SpecPipeline, i32 1, i32 0, i32 0, i32 0, void @empty_9" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:115]   --->   Operation 26 'specpipeline' 'specpipeline_ln115' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 27 [1/1] (0.00ns)   --->   "%speclooptripcount_ln116 = speclooptripcount void @_ssdm_op_SpecLoopTripCount, i64 16, i64 65536, i64 1024" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:116]   --->   Operation 27 'speclooptripcount' 'speclooptripcount_ln116' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 28 [1/1] (0.00ns)   --->   "%specloopname_ln114 = specloopname void @_ssdm_op_SpecLoopName, void @empty_16" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 28 'specloopname' 'specloopname_ln114' <Predicate = true> <Delay = 0.00>
+ST_3 : Operation 29 [1/1] (2.43ns)   --->   "%write_ln122 = write void @_ssdm_op_Write.m_axi.p1i512, i512 %gmem2_addr, i512 %gmem0_addr_read, i64 18446744073709551615" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122]   --->   Operation 29 'write' 'write_ln122' <Predicate = true> <Delay = 2.43> <CoreInst = "m_axi">   --->   Core 121 'm_axi' <Latency = 0> <II = 1> <Delay = 1.00> <Adapter> <Opcode : 'read' 'write' 'readreq' 'writereq' 'writeresp'>
+ST_3 : Operation 30 [1/1] (0.00ns)   --->   "%br_ln114 = br void %for.inc" [/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114]   --->   Operation 30 'br' 'br_ln114' <Predicate = true> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 3.333ns, clock uncertainty: 0.900ns.
+
+ <State 1>: 1.618ns
+The critical path consists of the following:
+	'store' operation 0 bit ('store_ln114', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) of constant 0 on local variable 'i', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114 [14]  (0.387 ns)
+	'load' operation 26 bit ('i', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) on local variable 'i', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114 [17]  (0.000 ns)
+	'icmp' operation 1 bit ('icmp_ln114', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) [20]  (0.844 ns)
+	'store' operation 0 bit ('store_ln114', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) of variable 'add_ln114', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114 on local variable 'i', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114 [31]  (0.387 ns)
+
+ <State 2>: 2.433ns
+The critical path consists of the following:
+	'getelementptr' operation 512 bit ('gmem0_addr', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) [24]  (0.000 ns)
+	bus read operation ('gmem0_addr_read', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122) on port 'gmem0' (/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122) [29]  (2.433 ns)
+
+ <State 3>: 2.433ns
+The critical path consists of the following:
+	'getelementptr' operation 512 bit ('gmem2_addr', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:114) [25]  (0.000 ns)
+	bus write operation ('write_ln122', /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122) on port 'gmem2' (/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp:122) [30]  (2.433 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+	State 3
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

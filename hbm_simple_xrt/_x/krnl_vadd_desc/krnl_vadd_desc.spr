@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="krnl_vadd_desc" dir="">
+  <FileSets>
+    <FileSet Name="kernel_krnl_vadd_desc" Type="DesignSrcs">
+      <File Path="/work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/src/krnl_vadd_desc.cpp"/>
+      <Config/>
+    </FileSet>
+  </FileSets>
+  <Runs/>
+</project>

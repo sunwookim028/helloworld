@@ -1,0 +1,18 @@
+{
+    "kernelContainerValues": [
+        "krnl_vadd_desc:xo"
+    ],
+    "compile": "false",
+    "debug": "false",
+    "exportScript": "false",
+    "gccHostCompile": "false",
+    "generateEstimateRpt": "false",
+    "keepSolution": "false",
+    "link": "false",
+    "logDir": "\/work\/shared\/users\/phd\/sk3463\/projects\/helloworld\/hbm_simple_xrt\/_x\/logs\/link",
+    "package": "false",
+    "reportDir": "\/work\/shared\/users\/phd\/sk3463\/projects\/helloworld\/hbm_simple_xrt\/_x\/reports\/link",
+    "saveTemps": "false",
+    "verbose": "false",
+    "vplNoIpCache": "false"
+}

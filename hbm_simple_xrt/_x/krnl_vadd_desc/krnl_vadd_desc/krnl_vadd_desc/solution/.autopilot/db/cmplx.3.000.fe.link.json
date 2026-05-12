@@ -1,0 +1,36 @@
+{
+  "0": {
+    "basicblocks": 16,
+    "calls": "2 2 2 1",
+    "file": "krnl_vadd_desc.cpp",
+    "fileloc": 47,
+    "instructions": 93,
+    "loads": {
+      "T": 2
+    },
+    "name": "krnl_vadd_desc",
+    "stores": {
+      "L": 1,
+      "T": 1
+    },
+    "total_instructions": 230
+  },
+  "1": {
+    "basicblocks": 1,
+    "calls": "",
+    "file": "krnl_vadd_desc.cpp",
+    "fileloc": 42,
+    "instructions": 3,
+    "name": "bytes_to_words512",
+    "total_instructions": 3
+  },
+  "2": {
+    "basicblocks": 1,
+    "calls": "",
+    "file": "krnl_vadd_desc.cpp",
+    "fileloc": 37,
+    "instructions": 2,
+    "name": "byte_to_word512",
+    "total_instructions": 2
+  }
+}

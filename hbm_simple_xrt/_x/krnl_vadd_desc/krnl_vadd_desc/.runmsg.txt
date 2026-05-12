@@ -1,0 +1,2 @@
+performing high-level synthesis for kernel: krnl_vadd_desc
+Log file: /work/shared/users/phd/sk3463/projects/helloworld/hbm_simple_xrt/_x/krnl_vadd_desc/krnl_vadd_desc/vitis_hls.log

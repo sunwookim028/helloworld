@@ -1,0 +1,38 @@
+{
+    "1": {
+        "name": "krnl_vadd_desc_Pipeline_data_transfer_loop",
+        "file": "\/work\/shared\/users\/phd\/sk3463\/projects\/helloworld\/hbm_simple_xrt\/src\/krnl_vadd_desc.cpp",
+        "fileloc": "114",
+        "instructions": "26",
+        "total_instructions": "26",
+        "calls": "",
+        "basicblocks": "4",
+        "loads": {
+            "L": "1"
+        },
+        "stores": {
+            "L": "2"
+        },
+        "loops": {
+            "L": "1"
+        }
+    },
+    "0": {
+        "name": "krnl_vadd_desc",
+        "file": "krnl_vadd_desc.cpp",
+        "fileloc": "47",
+        "instructions": "79",
+        "total_instructions": "105",
+        "calls": "1",
+        "basicblocks": "5",
+        "loads": {
+            "L": "2"
+        },
+        "stores": {
+            "L": "4"
+        },
+        "loops": {
+            "L": "1"
+        }
+    }
+}
