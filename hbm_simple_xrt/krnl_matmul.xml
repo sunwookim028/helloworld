@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root versionMajor="1" versionMinor="6">
+  <!--
+    Vitis RTL kernel descriptor for krnl_matmul.
+    Register map (ap_ctrl_hs, same layout as krnl_vadd_ctrl.v):
+      0x00  ap_ctrl (ap_start/ap_done/ap_idle)
+      0x10  in1[31:0]   W matrix byte address low  (gmem0)
+      0x14  in1[63:32]  W matrix byte address high
+      0x18  in2[31:0]   X matrix byte address low  (gmem1)
+      0x1C  in2[63:32]  X matrix byte address high
+      0x20  out_r[31:0] OUT matrix byte address low (gmem2)
+      0x24  out_r[63:32]OUT matrix byte address high
+  -->
+  <kernel name="krnl_matmul"
+          language="ip_c"
+          vlnv="user.org:user:krnl_matmul:1.0"
+          attributes=""
+          preferredWorkGroupSizeMultiple="0"
+          workGroupSize="1"
+          interrupt="false"
+          hwControlProtocol="ap_ctrl_hs">
+    <ports>
+      <port name="s_axi_control" mode="slave" range="0x40"
+            dataWidth="32" portType="addressable" base="0x0"/>
+      <port name="m_axi_gmem0" mode="master"
+            range="0xFFFFFFFFFFFFFFFF" dataWidth="512"
+            portType="addressable" base="0x0"/>
+      <port name="m_axi_gmem1" mode="master"
+            range="0xFFFFFFFFFFFFFFFF" dataWidth="512"
+            portType="addressable" base="0x0"/>
+      <port name="m_axi_gmem2" mode="master"
+            range="0xFFFFFFFFFFFFFFFF" dataWidth="512"
+            portType="addressable" base="0x0"/>
+    </ports>
+    <args>
+      <arg name="in1"   addressQualifier="1" id="0" port="m_axi_gmem0"
+           size="0x8" offset="0x10" hostOffset="0x0" hostSize="0x8" type="int*"/>
+      <arg name="in2"   addressQualifier="1" id="1" port="m_axi_gmem1"
+           size="0x8" offset="0x18" hostOffset="0x0" hostSize="0x8" type="int*"/>
+      <arg name="out_r" addressQualifier="1" id="2" port="m_axi_gmem2"
+           size="0x8" offset="0x20" hostOffset="0x0" hostSize="0x8" type="int*"/>
+    </args>
+  </kernel>
+</root>

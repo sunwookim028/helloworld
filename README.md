@@ -1,79 +1,117 @@
-# HBM Data Mover
+# HBM Matmul Kernel — 32×32 BF16 Systolic Array on Alveo U280
 
-This project demonstrates a high-bandwidth **Data Mover** on the Alveo U280 FPGA using High Bandwidth Memory (HBM).
+Vitis RTL kernel that computes **OUT = X × W^T** for 32×32 BF16 matrices stored in HBM. A weight-stationary systolic array (32×32 PEs) is wrapped in an AXI4 burst DMA pipeline targeting the Xilinx Alveo U280.
 
-## Overview
-The design acts as a pure DMA copy engine. It reads data from one HBM bank and writes it to another, saturating the AXI channels to measure peak realizable bandwidth on hardware.
+## Architecture
 
-## Results (Measured on U280)
-*   **Single Bank Reuse**: ~13.5 GB/s (Limited by bank contention)
-*   **Multi-Bank Transfer**: ~28.9 GB/s
-    *   Efficiency: ~14.4 GB/s per bank (Theoretical max ~14.9 GB/s).
-*   **Software-Driven Tensor Operations**: Tested via `tensor_test`.
-    *   Bulk Copy: 8.47 GB/s
-    *   Tiled/Row-by-Row Copy: 0.17 GB/s (Demonstrates ~84x software overhead, justifying hardware descriptors).
-*   **Connectivity**: Limited to `HBM[0:3]` by bitstream configuration.
+Two independent kernels share the AXI master/slave building blocks:
 
-### Test Details
-**Standard Bandwidth Test** (`./run.sh hbm`):
-- Case 1 (Single Bank): All buffers in Bank 0 → 14.6 GB/s
-- Case 2 (Multi-Bank): Buffers in Banks 1,2,3 → 27.8 GB/s (near-peak efficiency)
-- Case 3 (High Banks 4,5,6): **Failed** - `std::bad_alloc` (connectivity limited to HBM[0:3])
+- **krnl_vadd** — HBM bandwidth DMA kernel (reference). Reads `in1`, writes `out`.
+- **krnl_matmul** — Production matmul kernel. Computes `OUT = X × W^T` (32×32 BF16).
 
-**Tensor Scenario Test** (`./run.sh tensor`):
-- Bulk Copy (1M elements, single call): 9.2 GB/s
-- Software Orchestration (1024 calls of 1K elements): 0.19 GB/s
-- **Overhead**: 73x slowdown demonstrates need for hardware descriptor support
+The **Makefile is currently wired for `krnl_matmul`**. `krnl_vadd.cfg` / `pack_kernel.tcl` are for the DMA kernel; `krnl_matmul.cfg` / `pack_krnl_matmul.tcl` are for the matmul kernel.
 
-## Directory Structure
-```
-hbm_simple_xrt/
-├── src/
-│   ├── host.cpp              # Standard bandwidth test (Cases 1-3)
-│   ├── host_tensor.cpp       # Tensor scenario test (software orchestration)
-│   └── krnl_vadd.cpp         # 512-bit pure copy kernel
-├── krnl_vadd.cfg             # Linker config: HBM bank connectivity
-├── xrt.ini                   # Runtime config: profiling/debug settings
-├── Makefile                  # Build system (host + kernel)
-├── run.sh                    # Helper script with XRT environment setup
-├── hbm_simple_xrt            # Compiled host executable
-├── tensor_test               # Compiled tensor test executable
-├── krnl_vadd.xo              # Compiled kernel object (161KB)
-└── krnl_vadd.xclbin          # Hardware bitstream (49MB)
-```
+**`krnl_vadd_ctrl.v` is shared** between both kernels — the AXI4-Lite register map / ap_ctrl_hs is identical.
 
-## Configuration Files
+**krnl_matmul kernel FSM** (sequential, not pipelined):
+`IDLE → BURST_RD_W → BURST_RD_X → MT_START → MT_RUN → BURST_WR → DONE`
+W and X bursts run sequentially so FIFO routing (by address range) is unambiguous. Each burst is 32 beats (one 512-bit word per BF16 matrix row).
 
-### `krnl_vadd.cfg`
-*   **Role**: Linker Configuration File
-*   **Usage**: Tells the `v++ -l` (link) command how to map kernel arguments (`in1`, `in2`, `out`) to specific physical HBM banks (`HBM[0:3]`). Without this, the tools wouldn't know which memory interfaces to wire up.
+**matmul_top memory interface** is handshake-based (`mem_rsp_valid` / `mem_wr_done`), not fixed-latency — same code works with the cocotb 1-cycle model and the AXI bridge.
 
-### `xrt.ini`
-*   **Role**: XRT Runtime Configuration
-*   **Usage**: Read by the XRT library (on the host) at execution time. Enables features like Native Trace (`[Debug] native_xrt_trace=true`), which generates profiling data (`native_trace.csv`, `summary.csv`). Useful for debugging and profiling but not strictly required for production.
+**Simulation environment**: cocotb + Icarus Verilog. The Linux server does NOT have Icarus; simulation must run in WSL.
 
-## Building and Running
-### Prerequisites
-*   Xilinx Vitis/XRT 2023.2
+## Key Files
 
-### Build
+| File | Role |
+|---|---|
+| `src/krnl_matmul.sv` | Production kernel top; FSM + FIFO glue + AXI bridge |
+| `src/krnl_vadd.sv` | Reference DMA kernel top |
+| `src/krnl_vadd_ctrl.v` | AXI4-Lite slave (ap_ctrl_hs); shared by both kernels |
+| `src/krnl_vadd_rd_mst.v` | AXI4 burst read master (HBM → FIFO) |
+| `src/krnl_vadd_wr_mst.v` | AXI4 burst write master (FIFO → HBM) |
+| `src/matmul_top.sv` | 512-bit HBM ↔ 16-bit (BF16) MXU BRAM bridge |
+| `src/mxu.sv` | FSM + memory interface + systolic array orchestration |
+| `src/systolic_array.sv` | 32×32 PE grid (parameterized N) |
+| `src/pe.sv` | Single BF16 MAC unit with double-buffered weights |
+| `src/bf16_mul.sv` | Combinational BF16 multiplier |
+| `src/bf16_add.sv` | Combinational BF16 adder |
+| `src/fifo4.sv` | 512-bit FWFT FIFO, depth 64 (krnl_vadd) / 128 (krnl_matmul) |
+| `krnl_matmul.xml` | Vitis kernel descriptor — port/arg offsets for XRT |
+| `pack_krnl_matmul.tcl` | Vivado batch Tcl → `.xo` packaging |
+| `krnl_matmul.cfg` | HBM bank assignment: W→HBM[0], X→HBM[1], OUT→HBM[2] |
+| `verification/test_krnl_matmul.py` | Full AXI kernel cocotb test (AXI4 slave models included) |
+| `documentation/architecture.md` | Detailed design doc including execution phases and pitfalls |
+
+## Commands
+
+### Hardware build (Linux server — source Xilinx tools first)
 ```bash
-cd hbm_simple_xrt
-make
+source setup_xilinxtools.sh          # hostname-aware; handles brg-zhang-xcel vs dev server
+# or manually:
+source /opt/xilinx/Vitis/2023.2/settings64.sh && source /opt/xilinx/xrt/setup.sh
 ```
 
-### Run
-*Ensure XRT environment is sourced before running:*
+From `hbm_simple_xrt/`:
 ```bash
-source /opt/xilinx/xrt/setup.sh
-# OR use the provided wrapper script:
-./run.sh hbm
+make host                            # compile host_matmul (fast, no FPGA tools needed)
+make krnl_matmul.xo                  # package RTL → .xo via Vivado (~1 min, catches elab errors)
+make build                           # link .xo → .xclbin (hours)
+make hw_emu                          # hardware emulation target (minutes)
+make clean                           # required before rebuild after RTL changes
 ```
 
+Hardware emulation run:
 ```bash
-# Standard Bandwidth Test (Manual)
-./hbm_simple_xrt -x krnl_vadd.xclbin -d 0
-
-# Software Tensor Scenario Test (Manual)
-./tensor_test -x krnl_vadd.xclbin -d 0
+emconfigutil --platform xilinx_u280_gen3x16_xdma_1_202211_1 --nd 1  # generates emconfig.json
+export XCL_EMULATION_MODE=hw_emu
+./host_matmul -x krnl_matmul.hw_emu.xclbin
 ```
+
+Hardware run:
+```bash
+./host_matmul -x krnl_matmul.hw.xclbin [-d <device_id>]
+./run.sh hbm        # bandwidth test via krnl_vadd
+./run.sh tensor     # tensor scenario test
+```
+
+### RTL simulation (WSL)
+```bash
+# from verification/, with cocotb venv activated
+make test_systolic_array  # 19 tests — direct systolic_array drive
+make test_mxu             # 19 tests — MXU FSM + 16-bit BF16 memory model
+make test_matmul          # 9 tests  — matmul_top with 512-bit HBM model
+make test_krnl_matmul     # 4 tests  — full AXI kernel with cocotb AXI slaves
+make all                  # all 51 tests
+```
+
+## Testing
+
+Tests are layered: a failure in `test_mxu` with `test_systolic_array` passing isolates to the MXU FSM. A failure in `test_krnl_matmul` with `test_matmul` passing isolates to the krnl_matmul AXI bridge or kernel FSM.
+
+All tests verify `OUT = X × W^T` against a BF16 numpy reference (`bf16_ref()`). Tolerance: `rtol=0.02`.
+
+**Hardware verification:**
+```bash
+./host_matmul -x krnl_matmul.hw.xclbin   # 8 test cases (identity, scale, zero, integers, diagonal, 3× random)
+```
+
+## Code Style & Conventions
+
+- `.sv` = SystemVerilog (production RTL); `.v` = Verilog (ctrl + masters — unchanged from original)
+- All array ports use flat packed vectors (`[N*DATA_WIDTH-1:0]`) with `[r*DATA_WIDTH +: DATA_WIDTH]` bit-slicing — **never unpacked array ports** (Icarus limitation)
+- **No `automatic` variables in `always_ff`** — Icarus doesn't support them; loop vars declared at module scope as `int`
+- AXI master ports always declare **all channels** (read + write), even for read-only or write-only masters. Unused channels are tied off with explicit `assign` statements — never left floating
+- `ap_done` and `ap_start` are **one-cycle pulses**; the top-level FSM uses a rising-edge detector (`ap_start_prev`) and latches to handle concurrent done signals
+
+## Gotchas
+
+- **FIFO depth in krnl_matmul must be > 32** (WORDS_PER_MATRIX for 32×32 BF16). `fifo4` has `almost_full` at `DEPTH-1`; if depth=32, `almost_full` fires at 31 and stalls the read master before the final beat, deadlocking the burst. Depth is set to 128 to prevent this.
+- **`make clean` before RTL rebuild** — Vivado caches project state in `_pack_project_matmul/` and `ip_repo_matmul/`. Stale state causes silent packaging failures.
+- **Deployment server** (`brg-zhang-xcel.ece.cornell.edu`) has XRT + full Vitis license. The development server does not have XRT; hw_emu/hw execution must run on the deployment server.
+- **krnl_matmul.cfg vs krnl_vadd.cfg**: They assign different HBM banks. The matmul cfg puts each matrix on a separate bank; the vadd cfg assigns all ports to HBM[0:3]. Using the wrong cfg will link but give wrong connectivity.
+- **`kernel.xml` vs `krnl_matmul.xml`**: `kernel.xml` is for the krnl_vadd DMA kernel; `krnl_matmul.xml` is for the matmul kernel. `pack_krnl_matmul.tcl` uses `krnl_matmul.xml`.
+- **Weight packing**: Weights load in reversed row order into the systolic array — `W[c][N-1-p]`. This is intentional so that after the PE pipeline, `PE[r][c]` holds `W^T[r][c]`. Do not "fix" this reversal.
+- **AXI address routing** in krnl_matmul uses unsigned subtraction: `w_offs = mt_mem_addr - addr_w_word`. If `w_offs < 32` (WORDS_PER_MATRIX) → gmem0 (W), else → gmem1 (X). Works correctly only when W and X allocations are non-overlapping.
+- **BF16 test tolerance**: Tests use `bf16_ref()` which truncates inputs to BF16 then computes reference in FP32. Small-integer data (0–4) keeps sums within BF16 exact range. `rtol=0.02` for accumulation tests.
+- **krnl_vadd.xclbin in the repo** was built from the C++ HLS `krnl_vadd.cpp`, not the RTL `krnl_vadd.sv`. To run the RTL kernel on hardware, `make clean && make` to rebuild from scratch.

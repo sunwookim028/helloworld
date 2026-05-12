@@ -1,20 +1,14 @@
-# V80 FPGA Build Artifacts
+# ── V80 / Platform Build Artifacts ───────────────────────────────────────────
 amd_v80_gen5x8_25.1/build/
 fw/AMC/build/
 *.pdi
 *.xsa
 *.elf
 *.bin
+
+# ── Vivado ────────────────────────────────────────────────────────────────────
 *.log
 *.jou
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-
-# Vivado
 *.cache/
 *.hw/
 *.ip_user_files/
@@ -22,7 +16,55 @@ __pycache__/
 *.sim/
 .Xil/
 
-# OS
+# ── Vitis / v++ build outputs ─────────────────────────────────────────────────
+*.xo
+*.xclbin
+*.xclbin.info
+*.xclbin.link_summary
+_x/
+.run/
+.ipcache/
+emconfig.json
+
+# XRT runtime profiling/tracing outputs (controlled by xrt.ini)
+*.csv
+*.run_summary
+ext_metadata.json
+xsa.xml
+
+# Vivado kernel packaging scratch dirs
+_pack_project_*/
+ip_repo_*/
+
+# ── Host executables (no extension) ──────────────────────────────────────────
+hbm_simple_xrt/host_matmul
+hbm_simple_xrt/hbm_simple_xrt
+hbm_simple_xrt/tensor_test
+
+# ── Cocotb / Icarus Verilog simulation ────────────────────────────────────────
+sim_build/
+results.xml
+*.vcd
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+**/venv
+
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 *.swp
 *~
+
+# ── Machine-specific files (hardcoded paths) ──────────────────────────────────
+hbm_simple_xrt/verification/run_test.sh
+hbm_simple_xrt/documentation/run_test_sh.md
+
+# ── Claude / IDE ──────────────────────────────────────────────────────────────
+CLAUDE.md
+.claude/settings.local.json
+.vscode/
